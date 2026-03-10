@@ -303,7 +303,7 @@ function ChatApp({ user, onLogout }) {
       setApiMessages([...newApiMessages, assistantMsg]);
     } catch (err) {
   setIsSearching(false);
-  const errMsg = { role: "assistant", content: `⚠️ Помилка з'єднання: ${err.message}` }; `node server.cjs`" };
+  const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання: " + err.message };
       setMessages([...newDisplayMessages, errMsg]);
       setApiMessages([...newApiMessages, errMsg]);
     }
