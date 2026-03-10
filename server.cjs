@@ -6,7 +6,7 @@ app.use(cors());
 app.use(express.json());
 
 // 🔑 СЮДИ ВСТАВТЕ СВІЙ GROQ API КЛЮЧ (починається з gsk_...)
-const API_KEY = process.env.GROQ_API_KEY;
+const apiKey = process.env.OPENAI_API_KEY
 
 app.post("/api/chat", async (req, res) => {
   try {
