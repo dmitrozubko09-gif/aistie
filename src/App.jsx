@@ -301,9 +301,9 @@ function ChatApp({ user, onLogout }) {
       const assistantMsg = { role: "assistant", content: reply };
       setMessages([...newDisplayMessages, assistantMsg]);
       setApiMessages([...newApiMessages, assistantMsg]);
-    } catch {
-      setIsSearching(false);
-      const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання. Переконайся що server.cjs запущено: `node server.cjs`" };
+    } catch (err) {
+  setIsSearching(false);
+  const errMsg = { role: "assistant", content: `⚠️ Помилка з'єднання: ${err.message}` }; `node server.cjs`" };
       setMessages([...newDisplayMessages, errMsg]);
       setApiMessages([...newApiMessages, errMsg]);
     }
