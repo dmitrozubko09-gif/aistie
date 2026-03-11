@@ -71,24 +71,7 @@ const TypingDots = () => (
 
 // ── Рендер повідомлення з підтримкою [IMAGE: ...] ────────────
 const ImageMessage = ({ prompt }) => {
-  const url = `/api/image?prompt=${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`;
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
-  return (
-    <div style={{ marginTop: 8 }}>
-      {!loaded && !error && <div style={{ width: 280, height: 280, borderRadius: 14, background: "rgba(102,126,234,0.1)", border: "1px solid rgba(102,126,234,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 28, animation: "pulse 1s infinite" }}>🎨</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Генерую зображення...</div>
-      </div>}
-      {error && <div style={{ fontSize: 13, color: "#f87171" }}>❌ Не вдалось згенерувати зображення</div>}
-      <img src={url} alt={prompt} onLoad={() => setLoaded(true)} onError={() => setError(true)}
-        style={{ display: loaded ? "block" : "none", maxWidth: 300, borderRadius: 14, border: "1px solid rgba(102,126,234,0.3)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)" }} />
-      {loaded && <a href={url} download="ukrai-image.jpg" target="_blank" rel="noreferrer"
-        style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#a78bfa", textDecoration: "none" }}>⬇️ Зберегти</a>}
-    </div>
-  );
-};
-
+  const [src, setSrc] = useState(null);
 const formatMessage = (text, dark) => {
   // Перевіряємо на [IMAGE: ...] теги
   const imageMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
