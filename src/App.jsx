@@ -240,12 +240,33 @@ const ImageMessage = ({ prompt }) => {
 // ── FORMAT HELPERS ─────────────────────────────────────────────
 // Renders inline **bold** and `code` within a line
 const renderInline = (text, dark) => {
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
-  return parts.map((p, i) => {
-    if (p.startsWith("**") && p.endsWith("**")) return <strong key={i} style={{ color: dark ? "#c4b5fd" : "#5b21b6" }}>{p.slice(2, -2)}</strong>;
-    if (p.startsWith("`") && p.endsWith("`")) return <code key={i} style={{ background: dark ? "rgba(102,126,234,0.2)" : "rgba(102,126,234,0.12)", color: dark ? "#a5f3fc" : "#0e7490", borderRadius: 4, padding: "1px 5px", fontSize: "0.9em", fontFamily: "monospace" }}>{p.slice(1, -1)}</code>;
-    return p;
-  });
+  if (!text || typeof text !== "string") return text;
+  const result = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === "*" && text[i+1] === "*") {
+      const close = text.indexOf("**", i + 2);
+      if (close !== -1) {
+        result.push(<strong key={i} style={{ color: dark ? "#c4b5fd" : "#5b21b6" }}>{text.slice(i+2, close)}</strong>);
+        i = close + 2; continue;
+      }
+    }
+    if (text[i] === "`") {
+      const close = text.indexOf("`", i + 1);
+      if (close !== -1) {
+        result.push(<code key={i} style={{ background: dark ? "rgba(102,126,234,0.2)" : "rgba(102,126,234,0.12)", color: dark ? "#a5f3fc" : "#0e7490", borderRadius: 4, padding: "1px 5px", fontSize: "0.9em", fontFamily: "monospace" }}>{text.slice(i+1, close)}</code>);
+        i = close + 1; continue;
+      }
+    }
+    const next = Math.min(
+      text.indexOf("**", i) !== -1 ? text.indexOf("**", i) : text.length,
+      text.indexOf("`", i) !== -1 ? text.indexOf("`", i) : text.length
+    );
+    result.push(text.slice(i, next));
+    i = next;
+    if (i === next && i < text.length && text[i] !== "*" && text[i] !== "`") i++;
+  }
+  return result;
 };
 const formatMessage = (text, dark, onPreview) => {
   const imgMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
@@ -309,19 +330,6 @@ function LoginScreen({ onLogin }) {
     const h = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener("resize", h); return () => window.removeEventListener("resize", h);
   }, []);
-
-  // Перевірити ліміт при завантаженні
-  useEffect(() => {
-    if (!user?.email) return;
-    fetch("/api/limit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: user.email, action: "check" })
-    }).then(r => r.json()).then(d => {
-      setLimitCount(d.count || 0);
-      if (!d.allowed) setLimitReached(true);
-    }).catch(() => {});
-  }, [user?.email]);
 
   const features = [
     { icon: "🧠", title: "Надрозумний", desc: "Llama 3.3 70B — одна з найкращих моделей" },
@@ -454,6 +462,19 @@ function ChatApp({ user, onLogout }) {
     window.addEventListener("resize", h); return () => window.removeEventListener("resize", h);
   }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  // Перевірити ліміт при завантаженні
+  useEffect(() => {
+    if (!user?.email) return;
+    fetch("/api/limit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: user.email, action: "check" })
+    }).then(r => r.json()).then(d => {
+      setLimitCount(d.count || 0);
+      if (!d.allowed) setLimitReached(true);
+    }).catch(() => {});
+  }, [user?.email]);
   useEffect(() => {
     if (messages.length === 0) return;
     const chatId = currentChatId || Date.now().toString();
@@ -821,7 +842,7 @@ function ChatApp({ user, onLogout }) {
                 </div>
                 <span style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-                  Llama 3.3 70B · Groq · Зображення · Голос · {limitCount}/20 повідомлень
+                  {`Llama 3.3 70B · Groq · Зображення · Голос · ${limitCount}/20 повідомлень`}
                   {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
                   {activeFile && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {activeFile.name}</span>}
                 </span>
