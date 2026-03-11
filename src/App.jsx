@@ -76,7 +76,7 @@ function LimitReachedModal({ user, dark }) {
             <img src={user.picture} alt="" style={{ width: 32, height: 32, borderRadius: "50%" }} />
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>{user.name}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{user.email}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{user?.email}</div>
             </div>
           </div>
         )}
