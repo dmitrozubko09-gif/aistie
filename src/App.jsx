@@ -265,7 +265,7 @@ const formatTextOnly = (text, dark, onPreview) => {
               </button>
             </div>
           </div>
-          <pre style={{ background: dark ? "#0d0d1a" : "#1e1e2e", padding: "12px 16px", margin: 0, overflowX: "auto", fontSize: 13, lineHeight: 1.6, color: "#e2e8f0", fontFamily: "monospace" }}>{code}</pre>
+          <pre style={{ background: dark ? "#08080f" : "#0f0f1a", padding: "12px 16px", margin: 0, overflowX: "auto", fontSize: 13, lineHeight: 1.6, color: "#e2e8f0", fontFamily: "monospace" }}>{code}</pre>
         </div>
       );
     }
@@ -290,89 +290,119 @@ function LoginScreen({ onLogin }) {
   }, []);
 
   const features = [
-    { icon: "🧠", title: "Надрозумний", desc: "Llama 3.3 70B — одна з найкращих моделей" },
-    { icon: "⚡", title: "Блискавичний", desc: "Відповіді за секунди завдяки Groq" },
-    { icon: "🇺🇦", title: "Лише українською", desc: "Повністю україномовний асистент" },
-    { icon: "🖼️", title: "Генерація зображень", desc: "Малює картинки за твоїм описом" },
-    { icon: "🔊", title: "Голосовий ввід", desc: "Говори — бот розуміє українську" },
-    { icon: "💾", title: "Історія чатів", desc: "Зберігає розмови на пристрої" },
+    { icon: "⚡", title: "Блискавично", desc: "Відповіді за секунди завдяки Groq" },
+    { icon: "🇺🇦", title: "Українською", desc: "Повністю україномовний асистент" },
+    { icon: "🔊", title: "Голос", desc: "Говори — бот розуміє українську" },
+    { icon: "💾", title: "Історія", desc: "Зберігає розмови на пристрої" },
+    { icon: "📁", title: "Файли", desc: "Аналізує код та документи" },
+    { icon: "🧠", title: "Розумний", desc: "Llama 3.3 70B — топова модель" },
   ];
 
-  const loginCard = (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: isMobile ? "24px 20px" : "32px 28px", backdropFilter: "blur(20px)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: isMobile ? 36 : 48, marginBottom: 12, animation: "logoPulse 3s infinite" }}>✨</div>
-        <h3 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Почати спілкування</h3>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>Увійди через Google щоб отримати доступ</p>
-      </div>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-        <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
-      </div>
-      {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#f87171", fontSize: 13, marginBottom: 12 }}>⚠️ {loginError}</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {["🔒 Твої дані захищені", "🚫 Не зберігаємо повідомлення на сервері", "⚡ Вхід займає секунду"].map((t, i) => (
-          <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>{t}</div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if (isMobile) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "#06040f", display: "flex", flexDirection: "column", fontFamily: "'Outfit', sans-serif", overflowY: "auto" }}>
-        <div style={{ position: "fixed", top: "-10%", left: "-10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ padding: "40px 24px 24px", textAlign: "center", zIndex: 1 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 16px", boxShadow: "0 12px 40px rgba(102,126,234,0.45)", animation: "logoPulse 3s infinite ease-in-out" }}>🤖</div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1.5px", background: "linear-gradient(135deg, #667eea, #a78bfa, #63d1ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Асистент нового покоління</p>
-        </div>
-        <div style={{ margin: "0 16px", zIndex: 1 }}>{loginCard}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "16px", zIndex: 1 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px" }}>
-              <div style={{ fontSize: 20, marginBottom: 6 }}>{f.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#e2e8f0", marginBottom: 3 }}>{f.title}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.4 }}>{f.desc}</div>
-            </div>
-          ))}
-        </div>
-        <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", padding: "8px 16px 32px", zIndex: 1 }}>Натискаючи кнопку входу, ти погоджуєшся з умовами використання</p>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#06040f", display: "flex", fontFamily: "'Outfit', sans-serif", overflow: "hidden" }}>
-      <div style={{ position: "fixed", top: "-15%", left: "-5%", width: 800, height: 800, borderRadius: "50%", background: "radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%)", animation: "orbFloat 8s infinite ease-in-out", pointerEvents: "none" }} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px 64px", zIndex: 1, borderRight: "1px solid rgba(255,255,255,0.06)", overflowY: "auto" }}>
-        <div style={{ animation: "fadeInUp 0.7s ease both", maxWidth: 560 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 48 }}>
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, boxShadow: "0 16px 50px rgba(102,126,234,0.45)", animation: "logoPulse 3s infinite ease-in-out", flexShrink: 0 }}>🤖</div>
+    <div style={{ position: "fixed", inset: 0, background: "#0a0a0f", display: "flex", fontFamily: "'Inter', sans-serif", overflow: "hidden" }}>
+      {/* Ambient orbs */}
+      <div style={{ position: "fixed", top: "-20%", left: "-10%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)", animation: "orbFloat 10s infinite ease-in-out", pointerEvents: "none" }} />
+      <div style={{ position: "fixed", bottom: "-20%", right: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 65%)", animation: "orbFloat2 12s infinite ease-in-out", pointerEvents: "none" }} />
+      <div style={{ position: "fixed", top: "40%", right: "35%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 65%)", pointerEvents: "none" }} />
+
+      {/* Left — branding */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? "40px 24px" : "60px 72px", zIndex: 1, borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.04)", overflowY: "auto" }}>
+        <div style={{ animation: "fadeInUp 0.8s ease both", maxWidth: 520 }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 56 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, animation: "logoPulse 3s infinite ease-in-out", flexShrink: 0 }}>🤖</div>
             <div>
-              <h1 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-1.5px", background: "linear-gradient(135deg, #667eea, #a78bfa, #63d1ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>УкрАI</h1>
-              <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Асистент нового покоління</p>
+              <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</div>
+              <div style={{ fontSize: 13, color: "rgba(148,163,184,0.6)", marginTop: 2, fontWeight: 400 }}>powered by Llama 3.3 · Groq</div>
             </div>
           </div>
-          <h2 style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", marginBottom: 12, lineHeight: 1.3 }}>Твій розумний<br /><span style={{ background: "linear-gradient(135deg, #667eea, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI-помічник</span> 🇺🇦</h2>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 44, lineHeight: 1.7 }}>Відповідає на будь-які питання, малює зображення, розпізнає голос — і все це українською.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+          {/* Headline */}
+          <h1 style={{ fontSize: isMobile ? 32 : 48, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-1.5px", lineHeight: 1.15, marginBottom: 20 }}>
+            Твій особистий<br />
+            <span style={{ background: "linear-gradient(135deg, #818cf8, #c4b5fd, #67e8f9)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "200% auto", animation: "shimmer 4s linear infinite" }}>AI-асистент</span>{" "}
+            <span style={{ fontSize: isMobile ? 28 : 42 }}>🇺🇦</span>
+          </h1>
+          <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(148,163,184,0.7)", marginBottom: 48, lineHeight: 1.75, fontWeight: 400 }}>
+            Відповідає на будь-які питання, аналізує файли, розпізнає голос — і все це українською.
+          </p>
+
+          {/* Features grid */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
             {features.map((f, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "16px 18px", animation: `fadeInUp 0.6s ease ${0.1 + i * 0.07}s both` }}>
-                <div style={{ fontSize: 22, marginBottom: 8 }}>{f.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0", marginBottom: 4 }}>{f.title}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{f.desc}</div>
+              <div key={i} style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", animation: `fadeInUp 0.6s ease ${0.15 + i * 0.06}s both`, transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.25)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}>
+                <div style={{ fontSize: 20, marginBottom: 6 }}>{f.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: "#e2e8f0", marginBottom: 3 }}>{f.title}</div>
+                <div style={{ fontSize: 11, color: "rgba(148,163,184,0.5)", lineHeight: 1.5 }}>{f.desc}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div style={{ width: 460, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 44px", zIndex: 1, background: "rgba(255,255,255,0.015)", overflowY: "auto" }}>
-        <div style={{ width: "100%" }}>{loginCard}</div>
-      </div>
+
+      {/* Right — login */}
+      {!isMobile && (
+        <div style={{ width: 440, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 44px", zIndex: 1, overflowY: "auto" }}>
+          <div style={{ width: "100%", animation: "fadeInUp 0.9s ease 0.1s both" }}>
+            {/* Card */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 28, padding: "40px 36px", backdropFilter: "blur(30px)", animation: "borderGlow 4s infinite ease-in-out" }}>
+              <div style={{ textAlign: "center", marginBottom: 32 }}>
+                <div style={{ fontSize: 44, marginBottom: 16 }}>✨</div>
+                <h2 style={{ fontSize: 24, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: 8 }}>Почати роботу</h2>
+                <p style={{ fontSize: 14, color: "rgba(148,163,184,0.55)", lineHeight: 1.6 }}>Увійди через Google щоб отримати доступ до УкрАI</p>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+                <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
+              </div>
+              {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12, color: "#fca5a5", fontSize: 13, marginBottom: 16, textAlign: "center" }}>⚠️ {loginError}</div>}
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                {[["🔒", "Дані захищені та зашифровані"], ["🚫", "Не зберігаємо повідомлення на сервері"], ["⚡", "Вхід займає лічені секунди"]].map(([icon, text], i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 14 }}>{icon}</span>
+                    <span style={{ fontSize: 12, color: "rgba(148,163,184,0.45)", fontWeight: 400 }}>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(148,163,184,0.25)", marginTop: 16, lineHeight: 1.6 }}>Продовжуючи, ти погоджуєшся з умовами використання</p>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile login */}
+      {isMobile && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", overflowY: "auto", zIndex: 2, padding: "40px 20px 32px" }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 14px", animation: "logoPulse 3s infinite" }}>🤖</div>
+            <div style={{ fontSize: 32, fontWeight: 700, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</div>
+            <div style={{ fontSize: 13, color: "rgba(148,163,184,0.5)", marginTop: 4 }}>Асистент нового покоління</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 24, padding: "28px 22px", marginBottom: 20 }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Почати роботу</h3>
+              <p style={{ fontSize: 13, color: "rgba(148,163,184,0.5)" }}>Увійди через Google</p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+              <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
+            </div>
+            {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12, color: "#fca5a5", fontSize: 13, textAlign: "center" }}>⚠️ {loginError}</div>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {features.map((f, i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "12px 14px" }}>
+                <div style={{ fontSize: 18, marginBottom: 5 }}>{f.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: 12, color: "#e2e8f0", marginBottom: 2 }}>{f.title}</div>
+                <div style={{ fontSize: 10, color: "rgba(148,163,184,0.45)", lineHeight: 1.4 }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // ── CHAT APP ───────────────────────────────────────────────────
 function ChatApp({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
@@ -431,12 +461,14 @@ function ChatApp({ user, onLogout }) {
   }, [messages]);
 
   const dark = darkMode;
-  const bg = dark ? "#06040f" : "#f0f0f8";
-  const sidebarBg = dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)";
-  const borderColor = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
-  const textColor = dark ? "#fff" : "#1a1a2e";
-  const subColor = dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)";
-  const panelBg = dark ? "rgba(15,12,30,0.98)" : "rgba(255,255,255,0.98)";
+  const bg = dark ? "#0a0a0f" : "#f8fafc";
+  const sidebarBg = dark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.025)";
+  const borderColor = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
+  const textColor = dark ? "#f1f5f9" : "#0f172a";
+  const subColor = dark ? "rgba(148,163,184,0.6)" : "rgba(71,85,105,0.7)";
+  const panelBg = dark ? "rgba(13,13,20,0.99)" : "rgba(255,255,255,0.99)";
+  const accentColor = "#6366f1";
+  const accentGrad = "linear-gradient(135deg, #6366f1, #8b5cf6)";
 
   const getSystemPrompt = () => {
     let sys = BASE_SYSTEM;
@@ -529,13 +561,13 @@ function ChatApp({ user, onLogout }) {
     }
   };
 
-  const suggestions = ["🎨 Намалюй красивий захід сонця", "💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "🖼️ Згенеруй логотип для стартапу"];
+  const suggestions = ["💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "📝 Склади резюме для розробника", "🔍 Поясни як працює React"];
 
   const SideBtn = ({ onClick, title, emoji, danger, active }) => (
     <button onClick={onClick} title={title}
-      style={{ width: 44, height: 44, borderRadius: 13, background: active ? "rgba(102,126,234,0.25)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"), border: `1px solid ${active ? "rgba(102,126,234,0.5)" : borderColor}`, cursor: "pointer", fontSize: 19, display: "flex", alignItems: "center", justifyContent: "center", color: active ? "#a78bfa" : subColor, transition: "all 0.2s", position: "relative" }}
-      onMouseEnter={e => { e.currentTarget.style.background = danger ? "rgba(239,68,68,0.15)" : "rgba(102,126,234,0.2)"; e.currentTarget.style.color = danger ? "#ef4444" : "#a78bfa"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = active ? "rgba(102,126,234,0.25)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"); e.currentTarget.style.color = active ? "#a78bfa" : subColor; }}>
+      style={{ width: 44, height: 44, borderRadius: 13, background: active ? "rgba(99,102,241,0.2)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"), border: `1px solid ${active ? "rgba(99,102,241,0.45)" : borderColor}`, cursor: "pointer", fontSize: 19, display: "flex", alignItems: "center", justifyContent: "center", color: active ? "#a5b4fc" : subColor, transition: "all 0.2s", position: "relative" }}
+      onMouseEnter={e => { e.currentTarget.style.background = danger ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.15)"; e.currentTarget.style.color = danger ? "#ef4444" : "#a5b4fc"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = active ? "rgba(99,102,241,0.2)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"); e.currentTarget.style.color = active ? "#a5b4fc" : subColor; }}>
       {emoji}
     </button>
   );
@@ -555,12 +587,12 @@ function ChatApp({ user, onLogout }) {
 
   const FilesBtn = ({ mobile }) => (
     <button onClick={() => setShowFileManager(true)}
-      style={{ display: "flex", alignItems: "center", gap: mobile ? 0 : 7, padding: mobile ? "0" : "7px 14px", width: mobile ? 36 : "auto", height: mobile ? 36 : "auto", borderRadius: 12, border: `1px solid ${uploadedFiles.length > 0 ? "rgba(102,126,234,0.45)" : borderColor}`, background: uploadedFiles.length > 0 ? "rgba(102,126,234,0.15)" : "transparent", color: uploadedFiles.length > 0 ? "#a78bfa" : subColor, cursor: "pointer", fontSize: mobile ? 16 : 13, fontFamily: "inherit", justifyContent: "center", position: "relative", transition: "all 0.2s" }}
-      onMouseEnter={e => { e.currentTarget.style.background = "rgba(102,126,234,0.2)"; e.currentTarget.style.color = "#a78bfa"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = uploadedFiles.length > 0 ? "rgba(102,126,234,0.15)" : "transparent"; e.currentTarget.style.color = uploadedFiles.length > 0 ? "#a78bfa" : subColor; }}>
+      style={{ display: "flex", alignItems: "center", gap: mobile ? 0 : 7, padding: mobile ? "0" : "7px 14px", width: mobile ? 36 : "auto", height: mobile ? 36 : "auto", borderRadius: 12, border: `1px solid ${uploadedFiles.length > 0 ? "rgba(99,102,241,0.4)" : borderColor}`, background: uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent", color: uploadedFiles.length > 0 ? "#a5b4fc" : subColor, cursor: "pointer", fontSize: mobile ? 16 : 13, fontFamily: "inherit", justifyContent: "center", position: "relative", transition: "all 0.2s" }}
+      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; e.currentTarget.style.color = "#a5b4fc"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent"; e.currentTarget.style.color = uploadedFiles.length > 0 ? "#a5b4fc" : subColor; }}>
       📁{!mobile && " Файли"}
       {uploadedFiles.length > 0 && (
-        <span style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "#fff", borderRadius: 20, padding: mobile ? "1px 0" : "1px 7px", fontSize: 10, fontWeight: 700, minWidth: mobile ? 17 : "auto", height: mobile ? 17 : "auto", display: "flex", alignItems: "center", justifyContent: "center", position: mobile ? "absolute" : "static", top: mobile ? -5 : "auto", right: mobile ? -5 : "auto" }}>
+        <span style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", borderRadius: 20, padding: mobile ? "1px 0" : "1px 7px", fontSize: 10, fontWeight: 700, minWidth: mobile ? 17 : "auto", height: mobile ? 17 : "auto", display: "flex", alignItems: "center", justifyContent: "center", position: mobile ? "absolute" : "static", top: mobile ? -5 : "auto", right: mobile ? -5 : "auto" }}>
           {uploadedFiles.length}
         </span>
       )}
@@ -568,7 +600,7 @@ function ChatApp({ user, onLogout }) {
   );
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", flexDirection: "column", fontFamily: "'Outfit', sans-serif", overflow: "hidden", transition: "background 0.3s" }}>
+    <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif", overflow: "hidden", transition: "background 0.3s" }}>
 
       {/* MODALS */}
       {previewHtml && <HtmlPreviewModal html={previewHtml} onClose={() => setPreviewHtml(null)} />}
@@ -578,7 +610,7 @@ function ChatApp({ user, onLogout }) {
       {isMobile && (
         <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", flexShrink: 0, zIndex: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: textColor }}>УкрАI</div>
               <div style={{ fontSize: 10, color: subColor, display: "flex", alignItems: "center", gap: 4 }}>
@@ -590,8 +622,8 @@ function ChatApp({ user, onLogout }) {
             <FilesBtn mobile />
             <button onClick={() => { setShowMobileMenu(!showMobileMenu); setShowHistory(false); setShowPresets(false); }}
               style={{ width: 36, height: 36, borderRadius: 10, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>☰</button>
-            <div style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(102,126,234,0.5)" }} onClick={onLogout}>
-              {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
+            <div style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(99,102,241,0.45)" }} onClick={onLogout}>
+              {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
             </div>
           </div>
         </div>
@@ -603,7 +635,7 @@ function ChatApp({ user, onLogout }) {
           {mobileMenuItems.map((item, i) => (
             <button key={i} onClick={item.action}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", cursor: "pointer", color: item.danger ? "#ef4444" : textColor, fontSize: 14, textAlign: "left", fontFamily: "inherit" }}
-              onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(239,68,68,0.1)" : "rgba(102,126,234,0.1)"}
+              onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.1)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
               <span style={{ fontSize: 18 }}>{item.emoji}</span>{item.label}
             </button>
@@ -621,12 +653,12 @@ function ChatApp({ user, onLogout }) {
                 {/* Sidebar Header */}
                 <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
                     <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
                   </div>
                   <button onClick={startNewChat} title="Новий чат"
                     style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${borderColor}`, background: "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: subColor }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(102,126,234,0.15)"; e.currentTarget.style.color = "#a78bfa"; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.12)"; e.currentTarget.style.color = "#a5b4fc"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = subColor; }}>
                     ✏️
                   </button>
@@ -644,7 +676,7 @@ function ChatApp({ user, onLogout }) {
                       <div style={{ fontSize: 11, fontWeight: 700, color: subColor, padding: "6px 8px 4px", letterSpacing: "0.05em" }}>ВАШІ ЧАТИ</div>
                       {chatHistory.map(chat => (
                         <div key={chat.id} onClick={() => loadChat(chat)}
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, cursor: "pointer", marginBottom: 2, background: currentChatId === chat.id ? (dark ? "rgba(102,126,234,0.18)" : "rgba(102,126,234,0.12)") : "transparent", transition: "background 0.15s" }}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, cursor: "pointer", marginBottom: 2, background: currentChatId === chat.id ? (dark ? "rgba(99,102,241,0.15)" : "rgba(102,126,234,0.12)") : "transparent", transition: "background 0.15s" }}
                           onMouseEnter={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"; }}
                           onMouseLeave={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "transparent"; }}>
                           <span style={{ fontSize: 14, flexShrink: 0 }}>💬</span>
@@ -663,9 +695,9 @@ function ChatApp({ user, onLogout }) {
                 </div>
 
                 {/* Sidebar Footer */}
-                <div style={{ padding: "10px 12px", borderTop: `1px solid ${borderColor}`, flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(102,126,234,0.4)", cursor: "pointer" }} onClick={onLogout} title="Вийти">
-                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
+                <div style={{ padding: "12px 14px", borderTop: `1px solid ${borderColor}`, flexShrink: 0, display: "flex", alignItems: "center", gap: 10, background: dark ? "rgba(99,102,241,0.05)" : "rgba(99,102,241,0.03)" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(99,102,241,0.35)", cursor: "pointer" }} onClick={onLogout} title="Вийти">
+                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: textColor, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Користувач"}</div>
@@ -688,13 +720,13 @@ function ChatApp({ user, onLogout }) {
               {/* Left: sidebar toggle + title */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button onClick={() => setShowLeftSidebar(p => !p)} title="Сайдбар"
-                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${borderColor}`, background: showLeftSidebar ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showLeftSidebar ? "#a78bfa" : subColor, transition: "all 0.2s" }}>
+                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${borderColor}`, background: showLeftSidebar ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showLeftSidebar ? "#a5b4fc" : subColor, transition: "all 0.2s" }}>
                   ☰
                 </button>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
-                    <span style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", border: "1px solid rgba(102,126,234,0.3)", color: "#a78bfa", padding: "2px 8px", borderRadius: 20 }}>{activePreset.icon} {activePreset.name}</span>
+                    <span style={{ fontSize: 12, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.25)", color: "#a5b4fc", padding: "2px 8px", borderRadius: 20 }}>{activePreset.icon} {activePreset.name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
@@ -709,7 +741,7 @@ function ChatApp({ user, onLogout }) {
                 <FilesBtn />
                 <span style={{ fontSize: 13, color: subColor }}>Привіт, {user?.name?.split(" ")[0] || "Друже"}! 👋</span>
                 <button onClick={() => setShowRightPanel(p => !p)} title="Інструменти"
-                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${showRightPanel ? "rgba(102,126,234,0.5)" : borderColor}`, background: showRightPanel ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showRightPanel ? "#a78bfa" : subColor, transition: "all 0.2s" }}>
+                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${showRightPanel ? "rgba(99,102,241,0.45)" : borderColor}`, background: showRightPanel ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showRightPanel ? "#a5b4fc" : subColor, transition: "all 0.2s" }}>
                   ⚙️
                 </button>
               </div>
@@ -722,7 +754,7 @@ function ChatApp({ user, onLogout }) {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: isMobile ? 16 : 24, padding: isMobile ? "20px 8px" : "40px 20px" }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: isMobile ? 44 : 60, marginBottom: 12, animation: "logoPulse 3s infinite" }}>{activePreset.icon}</div>
-                  <h2 style={{ fontSize: isMobile ? 20 : 28, fontWeight: 800, color: textColor, marginBottom: 8 }}>
+                  <h2 style={{ fontSize: isMobile ? 20 : 28, fontWeight: 700, color: textColor, marginBottom: 8, letterSpacing: "-0.5px" }}>
                     {activePreset.id === "default" ? "Чим можу допомогти?" : `Режим: ${activePreset.name}`}
                   </h2>
                   <p style={{ fontSize: isMobile ? 13 : 14, color: subColor, maxWidth: 400, lineHeight: 1.7, margin: "0 auto" }}>
@@ -733,7 +765,7 @@ function ChatApp({ user, onLogout }) {
                   {suggestions.map((s, i) => (
                     <button key={i} onClick={() => { setInput(s.slice(2)); textareaRef.current?.focus(); }}
                       style={{ background: dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)", border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`, borderRadius: 12, padding: isMobile ? "10px" : "14px", color: dark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)", cursor: "pointer", fontSize: isMobile ? 12 : 13, textAlign: "left", fontFamily: "inherit", lineHeight: 1.4 }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(102,126,234,0.14)"; e.currentTarget.style.color = dark ? "#fff" : "#1a1a2e"; }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.12)"; e.currentTarget.style.color = dark ? "#fff" : "#1a1a2e"; }}
                       onMouseLeave={e => { e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)"; e.currentTarget.style.color = dark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)"; }}>
                       {s}
                     </button>
@@ -745,15 +777,15 @@ function ChatApp({ user, onLogout }) {
             {messages.map((m, i) => (
               <div key={i} style={{ display: "flex", gap: isMobile ? 6 : 10, justifyContent: m.role === "user" ? "flex-end" : "flex-start", animation: "fadeInUp 0.3s ease both" }}>
                 {m.role === "assistant" && (
-                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, marginTop: 2, boxShadow: "0 4px 14px rgba(102,126,234,0.3)" }}>{activePreset.icon}</div>
+                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, marginTop: 2, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 )}
                 <div style={{ maxWidth: isMobile ? "85%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
-                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? "linear-gradient(135deg, #667eea, #764ba2)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(102,126,234,0.35)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal" }}>
+                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal" }}>
                     {m.role === "assistant" ? formatMessage(m.content, dark, setPreviewHtml) : m.content}
                   </div>
                   {m.role === "assistant" && (
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => copyMessage(m.content, i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.color = "#a78bfa"} onMouseLeave={e => e.currentTarget.style.color = subColor}>
+                      <button onClick={() => copyMessage(m.content, i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.color = "#a5b4fc"} onMouseLeave={e => e.currentTarget.style.color = subColor}>
                         {copiedIdx === i ? "✅ Скопійовано" : "📋 Копіювати"}
                       </button>
                       <button onClick={() => pinFact(m.content)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.color = "#fbbf24"} onMouseLeave={e => e.currentTarget.style.color = subColor}>
@@ -763,8 +795,8 @@ function ChatApp({ user, onLogout }) {
                   )}
                 </div>
                 {m.role === "user" && (
-                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, overflow: "hidden", flexShrink: 0, marginTop: 2, border: "1.5px solid rgba(102,126,234,0.4)" }}>
-                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "#1a1d2e", display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>}
+                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, overflow: "hidden", flexShrink: 0, marginTop: 2, border: "1.5px solid rgba(99,102,241,0.35)" }}>
+                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>}
                   </div>
                 )}
               </div>
@@ -772,12 +804,12 @@ function ChatApp({ user, onLogout }) {
 
             {loading && (
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
-                <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(102,126,234,0.3)" }}>{activePreset.icon}</div>
+                <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "85%" : "74%" }}>
                   {streamingText ? (
                     <div style={{ fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, color: textColor }}>
                       {formatTextOnly(streamingText, dark, setPreviewHtml)}
-                      <span style={{ display: "inline-block", width: 8, height: 14, background: "#a78bfa", borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
+                      <span style={{ display: "inline-block", width: 8, height: 14, background: "#a5b4fc", borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
                     </div>
                   ) : <TypingDots />}
                 </div>
@@ -799,13 +831,13 @@ function ChatApp({ user, onLogout }) {
           {/* Input */}
           <div style={{ padding: isMobile ? "8px 10px 12px" : "12px 20px 14px", borderTop: `1px solid ${borderColor}`, background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
-              onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(102,126,234,0.5)"}
-              onBlurCapture={e => e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}>
+              onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(99,102,241,0.45)"}
+              onBlurCapture={e => { e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"; e.currentTarget.style.boxShadow = "none"; }}>
               <textarea ref={textareaRef} value={input}
                 onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !isMobile) { e.preventDefault(); sendMessage(); } }}
                 placeholder={isListening ? "🎤 Слухаю..." : (activePreset.id === "default" ? "Запитай або попроси намалювати..." : `Режим: ${activePreset.name}...`)}
-                rows={1} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: isListening ? "#a78bfa" : textColor, fontSize: isMobile ? 16 : 15, fontFamily: "inherit", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
+                rows={1} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: isListening ? "#a5b4fc" : textColor, fontSize: isMobile ? 16 : 15, fontFamily: "inherit", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
               {voiceSupported && (
                 <button onClick={toggleVoice}
                   style={{ width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: 10, border: "none", background: isListening ? "rgba(239,68,68,0.2)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, animation: isListening ? "pulse 1s infinite" : "none" }}>
@@ -813,7 +845,7 @@ function ChatApp({ user, onLogout }) {
                 </button>
               )}
               <button onClick={sendMessage} disabled={loading || !input.trim()}
-                style={{ width: isMobile ? 40 : 42, height: isMobile ? 40 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #667eea, #764ba2)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(102,126,234,0.4)" : "none", flexShrink: 0 }}>
+                style={{ width: isMobile ? 40 : 42, height: isMobile ? 40 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
@@ -833,12 +865,12 @@ function ChatApp({ user, onLogout }) {
                   <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🎭 Роль</div>
                   {PRESETS.map(p => (
                     <button key={p.id} onClick={() => setActivePreset(p)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, border: activePreset.id === p.id ? "1px solid rgba(102,126,234,0.5)" : `1px solid transparent`, background: activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.08)"}
-                      onMouseLeave={e => e.currentTarget.style.background = activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent"}>
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, border: activePreset.id === p.id ? "1px solid rgba(99,102,241,0.45)" : `1px solid transparent`, background: activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.08)"}
+                      onMouseLeave={e => e.currentTarget.style.background = activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent"}>
                       <span style={{ fontSize: 18 }}>{p.icon}</span>
                       <span style={{ fontSize: 13, color: textColor, fontWeight: activePreset.id === p.id ? 600 : 400 }}>{p.name}</span>
-                      {activePreset.id === p.id && <span style={{ marginLeft: "auto", color: "#667eea" }}>✓</span>}
+                      {activePreset.id === p.id && <span style={{ marginLeft: "auto", color: "#6366f1" }}>✓</span>}
                     </button>
                   ))}
                 </div>
@@ -856,7 +888,7 @@ function ChatApp({ user, onLogout }) {
                 ].map((item, i) => (
                   <button key={i} onClick={item.action}
                     style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", color: textColor, fontSize: 13, textAlign: "left", fontFamily: "inherit", marginBottom: 2 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.08)"}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.08)"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <span style={{ fontSize: 17 }}>{item.emoji}</span>{item.label}
                   </button>
@@ -882,7 +914,7 @@ function ChatApp({ user, onLogout }) {
                     {[["txt","📄 .txt"], ["md","📝 .md"], ["json","⚙️ .json"]].map(([fmt, label]) => (
                       <button key={fmt} onClick={() => exportChat(fmt)}
                         style={{ width: "100%", padding: "8px 10px", borderRadius: 9, border: `1px solid ${borderColor}`, background: "transparent", color: textColor, cursor: "pointer", fontSize: 12, textAlign: "left", marginBottom: 4, fontFamily: "inherit" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.1)"}
+                        onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.1)"}
                         onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                         {label}
                       </button>
@@ -928,20 +960,31 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cal+Sans&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; width: 100%; overflow: hidden; background: #06040f; }
-        @keyframes typingBounce { 0%,80%,100%{transform:translateY(0);opacity:0.5} 40%{transform:translateY(-8px);opacity:1} }
-        @keyframes fadeInUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-        @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
-        @keyframes logoPulse { 0%,100%{filter:drop-shadow(0 0 20px rgba(102,126,234,0.5))} 50%{filter:drop-shadow(0 0 40px rgba(118,75,162,0.8))} }
-        ::-webkit-scrollbar { width: 4px; }
+        html, body { height: 100%; width: 100%; overflow: hidden; background: #0a0a0f; }
+        .sidebar-new-btn:hover { background: rgba(99,102,241,0.12) !important; }
+        @keyframes typingBounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-7px);opacity:1} }
+        @keyframes fadeInUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+        @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1) rotate(0deg)} 50%{transform:translateY(-40px) scale(1.08) rotate(3deg)} }
+        @keyframes orbFloat2 { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(30px) scale(0.95)} }
+        @keyframes logoPulse { 0%,100%{box-shadow:0 0 30px rgba(99,102,241,0.4), 0 0 60px rgba(139,92,246,0.2)} 50%{box-shadow:0 0 50px rgba(99,102,241,0.7), 0 0 100px rgba(139,92,246,0.4)} }
+        @keyframes borderGlow { 0%,100%{border-color:rgba(99,102,241,0.3)} 50%{border-color:rgba(139,92,246,0.6)} }
+        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+        ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(102,126,234,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
         textarea { resize: none; }
-        textarea::placeholder { color: rgba(150,150,180,0.5); }
+        textarea::placeholder { color: rgba(148,163,184,0.4); }
         @media (max-width: 640px) { input, textarea, select { font-size: 16px !important; } }
+        .msg-bubble { transition: all 0.15s ease; }
+        .msg-bubble:hover { transform: translateY(-1px); }
+        .chat-item:hover .delete-btn { opacity: 1 !important; }
       `}</style>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         {user
