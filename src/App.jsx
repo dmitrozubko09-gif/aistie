@@ -45,48 +45,6 @@ const TypingDots = () => (
   </div>
 );
 
-// ── LIMIT REACHED MODAL ───────────────────────────────────────
-function LimitReachedModal({ user, dark }) {
-  const resetTime = (() => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const diff = tomorrow - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return `${h}г ${m}хв`;
-  })();
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(6,4,15,0.92)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Outfit', sans-serif" }}>
-      <div style={{ maxWidth: 440, width: "100%", background: "rgba(15,12,30,0.98)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 28, padding: "40px 36px", textAlign: "center", boxShadow: "0 40px 100px rgba(0,0,0,0.8)" }}>
-        <div style={{ fontSize: 64, marginBottom: 20, animation: "logoPulse 2s infinite" }}>🚫</div>
-        <h2 style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 12 }}>Ліміт вичерпано</h2>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 28 }}>
-          Ти використав усі <strong style={{ color: "#f87171" }}>20 повідомлень</strong> на сьогодні.<br />
-          Ліміт оновиться автоматично через:
-        </p>
-        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 16, padding: "16px 24px", marginBottom: 28 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: "#f87171", letterSpacing: "-1px" }}>⏳ {resetTime}</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>до оновлення ліміту</div>
-        </div>
-        {user?.picture && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center", padding: "12px 16px", background: "rgba(255,255,255,0.04)", borderRadius: 14, marginBottom: 20 }}>
-            <img src={user.picture} alt="" style={{ width: 32, height: 32, borderRadius: "50%" }} />
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>{user.name}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{user?.email}</div>
-            </div>
-          </div>
-        )}
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>
-          Ліміт прив'язаний до твого Google акаунту і скидається щодня о 00:00
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ── HTML PREVIEW MODAL ─────────────────────────────────────────
 function HtmlPreviewModal({ html, onClose }) {
@@ -442,9 +400,6 @@ function ChatApp({ user, onLogout }) {
   const [voiceSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
   const [chatHistory, setChatHistory] = useState(loadChatHistory);
   const [currentChatId, setCurrentChatId] = useState(null);
-  // 🚫 Ліміт повідомлень
-  const [limitCount, setLimitCount] = useState(0);
-  const [limitReached, setLimitReached] = useState(false);
   // 📊 Аналітика
   const [showStats, setShowStats] = useState(false);
   const [totalTokensIn, setTotalTokensIn] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_in") || "0"); } catch { return 0; } });
@@ -463,18 +418,6 @@ function ChatApp({ user, onLogout }) {
   }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
-  // Перевірити ліміт при завантаженні
-  useEffect(() => {
-    if (!user?.email) return;
-    fetch("/api/limit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: user.email, action: "check" })
-    }).then(r => r.json()).then(d => {
-      setLimitCount(d.count || 0);
-      if (!d.allowed) setLimitReached(true);
-    }).catch(() => {});
-  }, [user?.email]);
   useEffect(() => {
     if (messages.length === 0) return;
     const chatId = currentChatId || Date.now().toString();
@@ -543,8 +486,7 @@ function ChatApp({ user, onLogout }) {
 
   const sendMessage = async () => {
     const text = input.trim(); if (!text || loading) return;
-    // 🚫 Перевірка ліміту
-    if (limitReached) return;
+
     setInput(""); if (textareaRef.current) textareaRef.current.style.height = "auto";
     let apiText = text;
     if (activeFile) {
@@ -600,17 +542,7 @@ function ChatApp({ user, onLogout }) {
       const aMsg = { role: "assistant", content: reply };
       setStreamingText("");
       setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
-      // 📊 Збільшити лічильник ліміту в Supabase
-      if (user?.email) {
-        fetch("/api/limit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, action: "increment" })
-        }).then(r => r.json()).then(d => {
-          setLimitCount(d.count || 0);
-          if (!d.allowed) setLimitReached(true);
-        }).catch(() => {});
-      }
+
     } catch (err) {
       setStreamingText("");
       const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання: " + err.message };
@@ -661,7 +593,6 @@ function ChatApp({ user, onLogout }) {
     <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", flexDirection: "column", fontFamily: "'Outfit', sans-serif", overflow: "hidden", transition: "background 0.3s" }}>
 
       {/* MODALS */}
-      {limitReached && <LimitReachedModal user={user} dark={dark} />}
       {previewHtml && <HtmlPreviewModal html={previewHtml} onClose={() => setPreviewHtml(null)} />}
       {showFileManager && <FileManagerModal files={uploadedFiles} dark={dark} onClose={() => setShowFileManager(false)} onUseFile={(f) => setActiveFile(f)} onRemoveFile={removeFile} />}
 
@@ -810,7 +741,6 @@ function ChatApp({ user, onLogout }) {
               { icon: "📥", label: "Токенів вхідних", value: totalTokensIn.toLocaleString("uk-UA") },
               { icon: "📤", label: "Токенів вихідних", value: totalTokensOut.toLocaleString("uk-UA") },
               { icon: "💬", label: "Повідомлень у чаті", value: messages.length },
-              { icon: "🚫", label: "Використано сьогодні", value: `${limitCount} / 20` },
               { icon: "📚", label: "Збережених чатів", value: chatHistory.length },
               { icon: "📌", label: "Закріплених фактів", value: pinnedFacts.length },
             ].map((s, i) => (
@@ -842,7 +772,7 @@ function ChatApp({ user, onLogout }) {
                 </div>
                 <span style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-                  {`Llama 3.3 70B · Groq · Зображення · Голос · ${limitCount}/20 повідомлень`}
+                  Llama 3.3 70B · Groq · Зображення · Голос
                   {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
                   {activeFile && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {activeFile.name}</span>}
                 </span>
