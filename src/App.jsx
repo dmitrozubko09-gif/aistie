@@ -15,16 +15,18 @@ const PRESETS = [
 const BASE_SYSTEM = `Ти — УкрАI, україномовний AI-асистент. Твоя мова — ТІЛЬКИ УКРАЇНСЬКА. Російська ЗАБОРОНЕНА.
 
 СТИЛЬ СПІЛКУВАННЯ:
-- На привітання ("привіт", "хай", "hello") — відповідай коротко і природно, як друг. Наприклад: "Привіт! 👋 Чим можу допомогти?" і все. Жодних зайвих речень.
+- На привітання ("привіт", "хай", "hello", "йо", "hey") — відповідай коротко і природно, як друг. Наприклад: "Привіт! 👋 Чим можу допомогти?" і все. Жодних зайвих речень.
 - На прості питання — відповідай коротко і по суті.
 - На складні питання — відповідай розгорнуто зі структурою.
 - НЕ перелічуй що ти вмієш робити, якщо тебе не питають.
 - НЕ додавай зайвих речень типу "Я тут щоб допомогти у всьому...".
+- Говори як звичайна людина, природно і без зайвого пафосу.
 
 КРИТИЧНІ ПРАВИЛА:
 - Ніколи не вигадуй факти. Для коду — тільки робочий код з коментарями.
-- Якщо надано файл — аналізуй ТІЛЬКИ його.
-- Якщо просять намалювати — відповідай ТІЛЬКИ: [IMAGE: детальний опис англійською]`;
+- Якщо надано файл — аналізуй ТІЛЬКИ його. Знаходь баги, пояснюй логіку.
+- Якщо просять намалювати або згенерувати зображення — відповідай ТІЛЬКИ: [IMAGE: детальний опис англійською]
+- Будь структурованим де потрібно — списки, заголовки для складних відповідей.`;
 
 const STORAGE_KEY = "ukrai_chat_history";
 function loadChatHistory() {
@@ -464,6 +466,7 @@ function ChatApp({ user, onLogout }) {
   const [totalTokensOut, setTotalTokensOut] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_out") || "0"); } catch { return 0; } });
   const [totalRequests, setTotalRequests] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_requests") || "0"); } catch { return 0; } });
   const [streamingText, setStreamingText] = useState("");
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -832,13 +835,60 @@ function ChatApp({ user, onLogout }) {
                     </>
                   )}
                 </div>
-                <div style={{ padding: "12px 14px", borderTop: `1px solid ${borderColor}`, flexShrink: 0, display: "flex", alignItems: "center", gap: 10, background: dark ? "rgba(99,102,241,0.05)" : "rgba(99,102,241,0.03)" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(99,102,241,0.35)", cursor: "pointer" }} onClick={onLogout} title="Вийти">
-                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: textColor, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Користувач"}</div>
-                    <div style={{ fontSize: 10, color: subColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email || ""}</div>
+                {/* USER MENU POPUP */}
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  {showUserMenu && (
+                    <>
+                      <div onClick={() => setShowUserMenu(false)}
+                        style={{ position: "fixed", inset: 0, zIndex: 99 }} />
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 8, right: 8, background: dark ? "#16162a" : "#fff", border: `1px solid ${borderColor}`, borderRadius: 16, padding: "8px", zIndex: 100, boxShadow: "0 -8px 40px rgba(0,0,0,0.5)", animation: "fadeInUp 0.15s ease" }}>
+                        {/* Хедер меню */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 10px 12px", borderBottom: `1px solid ${borderColor}`, marginBottom: 4 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(99,102,241,0.45)", flexShrink: 0 }}>
+                            {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👤</div>}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: textColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Користувач"}</div>
+                            <div style={{ fontSize: 11, color: subColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email || ""}</div>
+                          </div>
+                        </div>
+                        {/* Пункти меню */}
+                        {[
+                          { emoji: "🎨", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setShowUserMenu(false); } },
+                          { emoji: "⚙️", label: "Налаштування", action: () => { setShowRightPanel(p => !p); setShowUserMenu(false); } },
+                          { emoji: "📊", label: "Аналітика", action: () => { setShowRightPanel(true); setShowStats(true); setShowUserMenu(false); } },
+                          { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(true); setShowRightPanel(true); setShowUserMenu(false); } },
+                        ].map((item, i) => (
+                          <button key={i} onClick={item.action}
+                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", color: textColor, fontSize: 13, textAlign: "left", fontFamily: "inherit", marginBottom: 1 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.1)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                            <span style={{ fontSize: 15 }}>{item.emoji}</span>{item.label}
+                          </button>
+                        ))}
+                        <div style={{ height: 1, background: borderColor, margin: "6px 0" }} />
+                        <button onClick={() => { if (window.confirm("Вийти?")) { onLogout(); setShowUserMenu(false); } }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 10px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", color: "#f87171", fontSize: 13, textAlign: "left", fontFamily: "inherit" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <span style={{ fontSize: 15 }}>🚪</span>Вийти
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {/* Кнопка внизу сайдбару */}
+                  <div onClick={() => setShowUserMenu(p => !p)}
+                    style={{ padding: "12px 14px", borderTop: `1px solid ${borderColor}`, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: showUserMenu ? (dark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)") : (dark ? "rgba(99,102,241,0.03)" : "rgba(99,102,241,0.02)"), transition: "background 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
+                    onMouseLeave={e => e.currentTarget.style.background = showUserMenu ? (dark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)") : (dark ? "rgba(99,102,241,0.03)" : "rgba(99,102,241,0.02)")}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(99,102,241,0.35)" }}>
+                      {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: textColor, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Користувач"}</div>
+                      <div style={{ fontSize: 10, color: subColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email || ""}</div>
+                    </div>
+                    <span style={{ fontSize: 14, color: subColor, marginLeft: "auto" }}>···</span>
                   </div>
                 </div>
               </>
