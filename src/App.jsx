@@ -71,7 +71,7 @@ const TypingDots = () => (
 
 // ── Рендер повідомлення з підтримкою [IMAGE: ...] ────────────
 const ImageMessage = ({ prompt }) => {
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`;
+  const url = `/api/image?prompt=${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`;
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   return (
