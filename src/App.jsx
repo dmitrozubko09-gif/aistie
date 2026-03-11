@@ -502,12 +502,18 @@ function ChatApp({ user, onLogout }) {
     setMessages(newDispMsgs); setApiMessages(newApiMsgs);
     setActiveFile(null); setLoading(true); setStreamingText("");
 
+    // Таймаут 30 секунд — якщо не відповідає, скидаємо
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: true })
+        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: true }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       // ── Streaming читання ──────────────────────────────────────
@@ -544,11 +550,16 @@ function ChatApp({ user, onLogout }) {
       setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
 
     } catch (err) {
+      clearTimeout(timeout);
       setStreamingText("");
-      const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання: " + err.message };
+      const isTimeout = err.name === "AbortError";
+      const errMsg = { role: "assistant", content: isTimeout ? "⏱️ Час очікування вичерпано. Спробуй ще раз." : "⚠️ Помилка з'єднання: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
+    } finally {
+      // finally гарантує що loading завжди скидається
+      setLoading(false);
+      setStreamingText("");
     }
-    setLoading(false);
   };
 
   const suggestions = ["🎨 Намалюй красивий захід сонця", "💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "🖼️ Згенеруй логотип для стартапу"];
