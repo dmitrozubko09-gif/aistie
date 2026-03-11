@@ -486,7 +486,6 @@ function ChatApp({ user, onLogout }) {
 
   const sendMessage = async () => {
     const text = input.trim(); if (!text || loading) return;
-
     setInput(""); if (textareaRef.current) textareaRef.current.style.height = "auto";
     let apiText = text;
     if (activeFile) {
@@ -500,63 +499,29 @@ function ChatApp({ user, onLogout }) {
     const newApiMsgs = [...apiMessages, { role: "user", content: apiText }];
     const newDispMsgs = [...messages, { role: "user", content: displayText }];
     setMessages(newDispMsgs); setApiMessages(newApiMsgs);
-    setActiveFile(null); setLoading(true); setStreamingText("");
-
-    // Таймаут 30 секунд — якщо не відповідає, скидаємо
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
+    setActiveFile(null); setLoading(true);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: true }),
-        signal: controller.signal,
+        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: false }),
       });
-      clearTimeout(timeout);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      // ── Streaming читання ──────────────────────────────────────
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = "";
-      let finalIn = 0, finalOut = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
-        for (const line of lines) {
-          const raw = line.slice(6);
-          if (raw === "[DONE]") continue;
-          try {
-            const chunk = JSON.parse(raw);
-            if (chunk.delta) { fullText += chunk.delta; setStreamingText(fullText); }
-            if (chunk.done) { finalIn = chunk.inputTokens || 0; finalOut = chunk.outputTokens || 0; }
-          } catch {}
-        }
-      }
-
-      // Зберегти в аналітику
-      const newIn = totalTokensIn + finalIn;
-      const newOut = totalTokensOut + finalOut;
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "API помилка");
+      const reply = data.content?.map(b => b.text).join("") || "Порожня відповідь.";
+      // Аналітика
+      const newIn = totalTokensIn + (data.usage?.inputTokens || 0);
+      const newOut = totalTokensOut + (data.usage?.outputTokens || 0);
       const newReqs = totalRequests + 1;
       setTotalTokensIn(newIn); setTotalTokensOut(newOut); setTotalRequests(newReqs);
       try { localStorage.setItem("ukrai_tokens_in", newIn); localStorage.setItem("ukrai_tokens_out", newOut); localStorage.setItem("ukrai_requests", newReqs); } catch {}
-
-      const reply = fullText || "Порожня відповідь.";
       const aMsg = { role: "assistant", content: reply };
-      setStreamingText("");
       setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
-
     } catch (err) {
-      clearTimeout(timeout);
-      setStreamingText("");
-      const isTimeout = err.name === "AbortError";
-      const errMsg = { role: "assistant", content: isTimeout ? "⏱️ Час очікування вичерпано. Спробуй ще раз." : "⚠️ Помилка з'єднання: " + err.message };
+      const errMsg = { role: "assistant", content: "⚠️ Помилка: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
     } finally {
-      // finally гарантує що loading завжди скидається
       setLoading(false);
       setStreamingText("");
     }
