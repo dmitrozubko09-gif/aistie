@@ -402,6 +402,8 @@ function ChatApp({ user, onLogout }) {
   const [currentChatId, setCurrentChatId] = useState(null);
   // 📊 Аналітика
   const [showStats, setShowStats] = useState(false);
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(false);
   const [totalTokensIn, setTotalTokensIn] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_in") || "0"); } catch { return 0; } });
   const [totalTokensOut, setTotalTokensOut] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_out") || "0"); } catch { return 0; } });
   const [totalRequests, setTotalRequests] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_requests") || "0"); } catch { return 0; } });
@@ -611,152 +613,105 @@ function ChatApp({ user, onLogout }) {
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
-        {/* DESKTOP SIDEBAR */}
+        {/* ── LEFT SIDEBAR (ChatGPT style) ── */}
         {!isMobile && (
-          <div style={{ width: 72, background: sidebarBg, borderRight: `1px solid ${borderColor}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 10, flexShrink: 0, zIndex: 10 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 13, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 4px 20px rgba(102,126,234,0.4)", flexShrink: 0 }}>{activePreset.icon}</div>
-            <div style={{ width: 36, height: 1, background: borderColor, margin: "4px 0" }} />
-            <SideBtn onClick={startNewChat} title="Новий чат" emoji="💬" />
-            <SideBtn onClick={() => { setShowHistory(!showHistory); setShowPresets(false); setShowPinned(false); setShowExport(false); }} title="Історія чатів" emoji="📂" active={showHistory} />
-            <SideBtn onClick={() => { setShowPresets(!showPresets); setShowPinned(false); setShowExport(false); setShowHistory(false); }} title="Ролі/Пресети" emoji="🎭" active={showPresets} />
-            <SideBtn onClick={() => { setShowPinned(!showPinned); setShowPresets(false); setShowExport(false); setShowHistory(false); }} title="Закріплені факти" emoji="📌" active={showPinned} />
-            <SideBtn onClick={() => fileInputRef.current?.click()} title="Завантажити файл" emoji="📎" />
-            <SideBtn onClick={() => { setShowExport(!showExport); setShowPresets(false); setShowPinned(false); setShowHistory(false); }} title="Експорт чату" emoji="💾" active={showExport} />
-            <SideBtn onClick={() => { setShowStats(!showStats); setShowPresets(false); setShowPinned(false); setShowHistory(false); setShowExport(false); }} title="Аналітика" emoji="📊" active={showStats} />
-            <div style={{ flex: 1 }} />
-            <SideBtn onClick={() => setDarkMode(!dark)} title={dark ? "Світла тема" : "Темна тема"} emoji={dark ? "☀️" : "🌙"} />
-            <SideBtn onClick={() => { if (window.confirm("Очистити чат?")) startNewChat(); }} title="Очистити чат" emoji="🗑" danger />
-            <div style={{ width: 44, height: 44, borderRadius: 13, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(102,126,234,0.5)", flexShrink: 0 }} title="Вийти" onClick={onLogout}>
-              {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👤</div>}
-            </div>
+          <div style={{ width: showLeftSidebar ? 260 : 0, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)", borderRight: showLeftSidebar ? `1px solid ${borderColor}` : "none", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", transition: "width 0.25s ease" }}>
+            {showLeftSidebar && (
+              <>
+                {/* Sidebar Header */}
+                <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
+                  </div>
+                  <button onClick={startNewChat} title="Новий чат"
+                    style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${borderColor}`, background: "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: subColor }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(102,126,234,0.15)"; e.currentTarget.style.color = "#a78bfa"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = subColor; }}>
+                    ✏️
+                  </button>
+                </div>
+
+                {/* Chat History List */}
+                <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px" }}>
+                  {chatHistory.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 16px", color: subColor }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+                      <div style={{ fontSize: 13 }}>Немає чатів</div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: subColor, padding: "6px 8px 4px", letterSpacing: "0.05em" }}>ВАШІ ЧАТИ</div>
+                      {chatHistory.map(chat => (
+                        <div key={chat.id} onClick={() => loadChat(chat)}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, cursor: "pointer", marginBottom: 2, background: currentChatId === chat.id ? (dark ? "rgba(102,126,234,0.18)" : "rgba(102,126,234,0.12)") : "transparent", transition: "background 0.15s" }}
+                          onMouseEnter={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"; }}
+                          onMouseLeave={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "transparent"; }}>
+                          <span style={{ fontSize: 14, flexShrink: 0 }}>💬</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, color: currentChatId === chat.id ? (dark ? "#c4b5fd" : "#5b21b6") : textColor, fontWeight: currentChatId === chat.id ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                            <div style={{ fontSize: 10, color: subColor, marginTop: 1 }}>{chat.date}</div>
+                          </div>
+                          <button onClick={(e) => deleteChat(chat.id, e)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, padding: "2px 4px", opacity: 0, transition: "opacity 0.15s", flexShrink: 0 }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                            onMouseLeave={e => e.currentTarget.style.opacity = "0"}>🗑</button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                {/* Sidebar Footer */}
+                <div style={{ padding: "10px 12px", borderTop: `1px solid ${borderColor}`, flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(102,126,234,0.4)", cursor: "pointer" }} onClick={onLogout} title="Вийти">
+                    {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: textColor, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name || "Користувач"}</div>
+                    <div style={{ fontSize: 10, color: subColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email || ""}</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
         <input ref={fileInputRef} type="file" accept=".txt,.js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.csv,.vue,.php,.java,.c,.cpp,.cs,.go,.rb,.rs,.swift" style={{ display: "none" }} onChange={handleFileUpload} />
-
-        {/* PANELS */}
-        {showHistory && (
-          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "75vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: subColor }}>📂 ІСТОРІЯ ЧАТІВ</div>
-              <button onClick={startNewChat} style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", border: "1px solid rgba(102,126,234,0.3)", color: "#a78bfa", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>+ Новий</button>
-            </div>
-            {chatHistory.length === 0
-              ? <div style={{ fontSize: 13, color: subColor, textAlign: "center", padding: "20px 0" }}>Немає збережених чатів</div>
-              : chatHistory.map(chat => (
-                <div key={chat.id} onClick={() => loadChat(chat)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, cursor: "pointer", marginBottom: 4, background: currentChatId === chat.id ? "rgba(102,126,234,0.15)" : "transparent", border: `1px solid ${currentChatId === chat.id ? "rgba(102,126,234,0.3)" : "transparent"}` }}
-                  onMouseEnter={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "rgba(102,126,234,0.08)"; }}
-                  onMouseLeave={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "transparent"; }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: textColor, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
-                    <div style={{ fontSize: 11, color: subColor, marginTop: 2 }}>{chat.date} · {chat.messages.length} повідомлень</div>
-                  </div>
-                  <button onClick={(e) => deleteChat(chat.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14, padding: "2px 4px", opacity: 0.6 }} onMouseEnter={e => e.currentTarget.style.opacity = "1"} onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}>🗑</button>
-                </div>
-              ))
-            }
-          </div>
-        )}
-
-        {showPresets && (
-          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 280, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "70vh", overflowY: "auto" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>🎭 ОБЕРІТЬ РОЛЬ</div>
-            {PRESETS.map(p => (
-              <button key={p.id} onClick={() => { setActivePreset(p); setShowPresets(false); }}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, border: activePreset.id === p.id ? "1px solid rgba(102,126,234,0.5)" : "1px solid transparent", background: activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", marginBottom: 4, textAlign: "left", fontFamily: "inherit" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.1)"}
-                onMouseLeave={e => e.currentTarget.style.background = activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent"}>
-                <span style={{ fontSize: 22 }}>{p.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: textColor }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: subColor, marginTop: 1 }}>{p.id === "default" ? "Стандартний режим" : "Спеціалізований"}</div>
-                </div>
-                {activePreset.id === p.id && <span style={{ marginLeft: "auto", color: "#667eea", fontSize: 16 }}>✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showPinned && (
-          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "70vh", overflowY: "auto" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>📌 ЗАКРІПЛЕНІ ФАКТИ</div>
-            {pinnedFacts.length === 0
-              ? <div style={{ fontSize: 13, color: subColor, textAlign: "center", padding: "20px 0" }}>Немає закріплених фактів.<br /><span style={{ fontSize: 12, opacity: 0.7 }}>Натисни 📌 під повідомленням</span></div>
-              : pinnedFacts.map((f, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1, fontSize: 13, color: textColor, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", borderRadius: 10, padding: "8px 12px", lineHeight: 1.5 }}>{f}</div>
-                  <button onClick={() => setPinnedFacts(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14, padding: "0 4px" }}>✕</button>
-                </div>
-              ))
-            }
-          </div>
-        )}
-
-        {showExport && (
-          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 240, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>💾 ЕКСПОРТ ЧАТУ</div>
-            {[["txt", "📄 Текстовий файл (.txt)"], ["md", "📝 Markdown (.md)"], ["json", "⚙️ JSON для розробників"]].map(([fmt, label]) => (
-              <button key={fmt} onClick={() => exportChat(fmt)}
-                style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: `1px solid ${borderColor}`, background: "transparent", color: textColor, cursor: "pointer", fontSize: 13, textAlign: "left", marginBottom: 6, fontFamily: "inherit" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.1)"}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                {label}
-              </button>
-            ))}
-            {messages.length === 0 && <div style={{ fontSize: 12, color: subColor, textAlign: "center", marginTop: 8 }}>Чат порожній</div>}
-          </div>
-        )}
-
-        {/* STATS PANEL */}
-        {showStats && (
-          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 20, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 16 }}>📊 АНАЛІТИКА ВИКОРИСТАННЯ</div>
-            {[
-              { icon: "📨", label: "Всього запитів", value: totalRequests },
-              { icon: "📥", label: "Токенів вхідних", value: totalTokensIn.toLocaleString("uk-UA") },
-              { icon: "📤", label: "Токенів вихідних", value: totalTokensOut.toLocaleString("uk-UA") },
-              { icon: "💬", label: "Повідомлень у чаті", value: messages.length },
-              { icon: "📚", label: "Збережених чатів", value: chatHistory.length },
-              { icon: "📌", label: "Закріплених фактів", value: pinnedFacts.length },
-            ].map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, background: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>{s.icon}</span>
-                  <span style={{ fontSize: 13, color: subColor }}>{s.label}</span>
-                </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: textColor }}>{s.value}</span>
-              </div>
-            ))}
-            <button onClick={() => { if (window.confirm("Скинути всю статистику?")) { setTotalTokensIn(0); setTotalTokensOut(0); setTotalRequests(0); try { localStorage.removeItem("ukrai_tokens_in"); localStorage.removeItem("ukrai_tokens_out"); localStorage.removeItem("ukrai_requests"); } catch {} } }}
-              style={{ width: "100%", marginTop: 10, padding: "8px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
-              🗑 Скинути статистику
-            </button>
-          </div>
-        )}
 
         {/* MAIN */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
           {/* Desktop Header */}
           {!isMobile && (
-            <div style={{ padding: "12px 24px", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
-                  <span style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", border: "1px solid rgba(102,126,234,0.3)", color: "#a78bfa", padding: "2px 8px", borderRadius: 20 }}>{activePreset.icon} {activePreset.name}</span>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)", flexShrink: 0, gap: 12 }}>
+              {/* Left: sidebar toggle + title */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button onClick={() => setShowLeftSidebar(p => !p)} title="Сайдбар"
+                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${borderColor}`, background: showLeftSidebar ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showLeftSidebar ? "#a78bfa" : subColor, transition: "all 0.2s" }}>
+                  ☰
+                </button>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
+                    <span style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", border: "1px solid rgba(102,126,234,0.3)", color: "#a78bfa", padding: "2px 8px", borderRadius: 20 }}>{activePreset.icon} {activePreset.name}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
+                    Llama 3.3 70B · Groq
+                    {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
+                    {activeFile && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {activeFile.name}</span>}
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-                  Llama 3.3 70B · Groq · Зображення · Голос
-                  {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
-                  {activeFile && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {activeFile.name}</span>}
-                </span>
               </div>
-              {/* 📁 КНОПКА ФАЙЛІВ — правий верхній кут */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Right: tools toggle + files + greeting */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <FilesBtn />
                 <span style={{ fontSize: 13, color: subColor }}>Привіт, {user?.name?.split(" ")[0] || "Друже"}! 👋</span>
+                <button onClick={() => setShowRightPanel(p => !p)} title="Інструменти"
+                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${showRightPanel ? "rgba(102,126,234,0.5)" : borderColor}`, background: showRightPanel ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showRightPanel ? "#a78bfa" : subColor, transition: "all 0.2s" }}>
+                  ⚙️
+                </button>
               </div>
             </div>
           )}
@@ -865,6 +820,104 @@ function ChatApp({ user, onLogout }) {
             {!isMobile && <p style={{ textAlign: "center", fontSize: 11, color: subColor, marginTop: 6, opacity: 0.6 }}>Enter — надіслати · Shift+Enter — новий рядок · 🎤 — голос</p>}
           </div>
         </div>
+
+        {/* ── RIGHT PANEL (Tools) ── */}
+        {!isMobile && (
+          <div style={{ width: showRightPanel ? 260 : 0, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)", borderLeft: showRightPanel ? `1px solid ${borderColor}` : "none", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", transition: "width 0.25s ease" }}>
+            {showRightPanel && (
+              <div style={{ padding: "14px 14px", overflowY: "auto", flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 12, letterSpacing: "0.05em" }}>ІНСТРУМЕНТИ</div>
+
+                {/* Presets */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🎭 Роль</div>
+                  {PRESETS.map(p => (
+                    <button key={p.id} onClick={() => setActivePreset(p)}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, border: activePreset.id === p.id ? "1px solid rgba(102,126,234,0.5)" : `1px solid transparent`, background: activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.08)"}
+                      onMouseLeave={e => e.currentTarget.style.background = activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent"}>
+                      <span style={{ fontSize: 18 }}>{p.icon}</span>
+                      <span style={{ fontSize: 13, color: textColor, fontWeight: activePreset.id === p.id ? 600 : 400 }}>{p.name}</span>
+                      {activePreset.id === p.id && <span style={{ marginLeft: "auto", color: "#667eea" }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ height: 1, background: borderColor, margin: "12px 0" }} />
+
+                {/* Actions */}
+                <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>⚡ Дії</div>
+                {[
+                  { emoji: "📎", label: "Завантажити файл", action: () => fileInputRef.current?.click() },
+                  { emoji: "📌", label: `Закріплені (${pinnedFacts.length})`, action: () => { setShowPinned(!showPinned); closeAll(); setShowRightPanel(true); } },
+                  { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); closeAll(); setShowRightPanel(true); } },
+                  { emoji: "📊", label: "Аналітика", action: () => { setShowStats(!showStats); closeAll(); setShowRightPanel(true); } },
+                  { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => setDarkMode(!dark) },
+                ].map((item, i) => (
+                  <button key={i} onClick={item.action}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", color: textColor, fontSize: 13, textAlign: "left", fontFamily: "inherit", marginBottom: 2 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.08)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <span style={{ fontSize: 17 }}>{item.emoji}</span>{item.label}
+                  </button>
+                ))}
+
+                {/* Pinned facts inline */}
+                {showPinned && pinnedFacts.length > 0 && (
+                  <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>📌 ЗАКРІПЛЕНІ</div>
+                    {pinnedFacts.map((f, i) => (
+                      <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                        <div style={{ flex: 1, fontSize: 12, color: textColor, lineHeight: 1.5 }}>{f.slice(0, 80)}{f.length > 80 ? "…" : ""}</div>
+                        <button onClick={() => setPinnedFacts(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Export inline */}
+                {showExport && (
+                  <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>💾 ЕКСПОРТ</div>
+                    {[["txt","📄 .txt"], ["md","📝 .md"], ["json","⚙️ .json"]].map(([fmt, label]) => (
+                      <button key={fmt} onClick={() => exportChat(fmt)}
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: 9, border: `1px solid ${borderColor}`, background: "transparent", color: textColor, cursor: "pointer", fontSize: 12, textAlign: "left", marginBottom: 4, fontFamily: "inherit" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "rgba(102,126,234,0.1)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Stats inline */}
+                {showStats && (
+                  <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>📊 АНАЛІТИКА</div>
+                    {[
+                      ["📨", "Запитів", totalRequests],
+                      ["📥", "Токенів вхід", totalTokensIn.toLocaleString("uk-UA")],
+                      ["📤", "Токенів вихід", totalTokensOut.toLocaleString("uk-UA")],
+                      ["💬", "Повідомлень", messages.length],
+                    ].map(([icon, label, val], i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: i < 3 ? `1px solid ${borderColor}` : "none" }}>
+                        <span style={{ fontSize: 12, color: subColor }}>{icon} {label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: textColor }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ height: 1, background: borderColor, margin: "12px 0" }} />
+                <button onClick={() => { if (window.confirm("Очистити чат?")) startNewChat(); }}
+                  style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", fontSize: 13, textAlign: "left", fontFamily: "inherit" }}>
+                  🗑 Очистити чат
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );
