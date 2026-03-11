@@ -3,14 +3,13 @@ import { GoogleOAuthProvider, GoogleLogin, googleLogout } from "@react-oauth/goo
 
 const GOOGLE_CLIENT_ID = "709769823975-979bjivkuo95agn5j0g8rtloeu45iorf.apps.googleusercontent.com";
 
-// ── PRESETS / ROLES ──────────────────────────────────────────────
 const PRESETS = [
   { id: "default", icon: "🤖", name: "УкрАI", prompt: "" },
   { id: "coder", icon: "💻", name: "Редактор коду", prompt: "Ти — експертний розробник. При написанні коду: завжди додавай коментарі до кожного блоку, перевіряй синтаксис, пояснюй що робить кожна функція, вказуй можливі помилки та як їх уникнути. Пиши тільки робочий, production-ready код." },
   { id: "translator", icon: "🌐", name: "Перекладач", prompt: "Ти — професійний перекладач і лінгвіст. Не просто перекладай дослівно, а: пояснюй сталі вирази та ідіоми, вказуй культурний контекст, пропонуй кілька варіантів перекладу де це доречно, пояснюй граматичні особливості. Перекладай з будь-якої мови на українську або навпаки." },
-  { id: "writer", icon: "✍️", name: "Сценарист", prompt: "Ти — творчий сценарист і письменник. Допомагай з: описом локацій (атмосфера, деталі, відчуття), діями персонажів (емоції, жести, мова тіла), діалогами, побудовою сюжету. Пиши яскраво, образно, з деталями. Використовуй літературні прийоми." },
-  { id: "teacher", icon: "📚", name: "Вчитель", prompt: "Ти — терплячий та зрозумілий вчитель. Пояснюй будь-яку тему: починай з простих аналогій, розбивай на маленькі кроки, наводь реальні приклади з життя, перевіряй розуміння питаннями. Адаптуй складність під рівень учня." },
-  { id: "analyst", icon: "📊", name: "Аналітик", prompt: "Ти — бізнес-аналітик та стратег. При аналізі: використовуй структуровані фреймворки (SWOT, 5W, etc.), спирайся на дані та факти, вказуй ризики та можливості, давай конкретні рекомендації з обґрунтуванням. Мисли критично та системно." },
+  { id: "writer", icon: "✍️", name: "Сценарист", prompt: "Ти — творчий сценарист і письменник. Допомагай з: описом локацій (атмосфера, деталі, відчуття), діями персонажів (емоції, жести, мова тіла), діалогами, побудовою сюжету. Пиши яскраво, образно, з деталями." },
+  { id: "teacher", icon: "📚", name: "Вчитель", prompt: "Ти — терплячий та зрозумілий вчитель. Пояснюй будь-яку тему: починай з простих аналогій, розбивай на маленькі кроки, наводь реальні приклади з життя, перевіряй розуміння питаннями." },
+  { id: "analyst", icon: "📊", name: "Аналітик", prompt: "Ти — бізнес-аналітик та стратег. При аналізі: використовуй структуровані фреймворки (SWOT, 5W, etc.), спирайся на дані та факти, вказуй ризики та можливості, давай конкретні рекомендації." },
 ];
 
 const BASE_SYSTEM = `Ти — УкрАI, україномовний AI-асистент найвищого рівня. Твоя мова — ТІЛЬКИ УКРАЇНСЬКА.
@@ -18,27 +17,40 @@ const BASE_SYSTEM = `Ти — УкрАI, україномовний AI-асис�
 КРИТИЧНЕ ПРАВИЛО №1 — МОВА:
 Відповідай ВИКЛЮЧНО українською мовою. Завжди. Без винятків.
 Російська мова ПОВНІСТЮ ЗАБОРОНЕНА.
-Якщо користувач пише російською — відповідай українською.
 
 КРИТИЧНЕ ПРАВИЛО №2 — ТОЧНІСТЬ:
 - Ніколи не вигадуй факти. Краще визнати незнання.
-- Для коду — пиши тільки робочий код.
+- Для коду — пиши тільки робочий код з коментарями.
 - Для медичних/юридичних/фінансових питань — рекомендуй фахівця.
-- Якщо є сумніви — додай "⚠️ Рекомендую перевірити у додаткових джерелах".
 
-КРИТИЧНЕ ПРАВИЛО №3 — РІЗНОМАНІТНІСТЬ КОДУ:
-Кожного разу генеруй унікальне рішення — різні стилі, кольори, структуру, підхід.
+КРИТИЧНЕ ПРАВИЛО №3 — РОБОТА З ФАЙЛАМИ:
+- Якщо тобі надано код файлу — аналізуй ТІЛЬКИ його, не вигадуй.
+- Знаходь баги, пояснюй логіку, пропонуй покращення.
+- Якщо файл не є кодом — резюмуй його зміст точно.
+
+КРИТИЧНЕ ПРАВИЛО №4 — ГЕНЕРАЦІЯ ЗОБРАЖЕНЬ:
+Якщо користувач просить намалювати або згенерувати зображення — відповідай ТІЛЬКИ у форматі:
+[IMAGE: детальний опис зображення англійською, реалістичний стиль]
+Наприклад: [IMAGE: beautiful Ukrainian sunset over wheat fields, golden hour, photorealistic]
 
 Правила відповідей:
 - Будь структурованим — списки, заголовки де потрібно
 - Давай робочі приклади коду з поясненням
-- Будь теплим та мотивуючим
+- Будь теплим та мотивуючим`;
 
-Веб-пошук [SEARCH: запит англійською]:
-- Новини → [SEARCH: Ukraine news today]
-- Курс валют → [SEARCH: USD UAH exchange rate today]
-- Погода → [SEARCH: city weather today]
-- НЕ шукай: математика, код, творчі завдання`;
+// ── STORAGE для історії чатів ──────────────────────────────────
+const STORAGE_KEY = "ukrai_chat_history";
+
+function loadChatHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveChatHistory(chats) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats)); } catch {}
+}
 
 function decodeGoogleJWT(token) {
   try {
@@ -57,7 +69,43 @@ const TypingDots = () => (
   </div>
 );
 
+// ── Рендер повідомлення з підтримкою [IMAGE: ...] ────────────
+const ImageMessage = ({ prompt }) => {
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`;
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  return (
+    <div style={{ marginTop: 8 }}>
+      {!loaded && !error && <div style={{ width: 280, height: 280, borderRadius: 14, background: "rgba(102,126,234,0.1)", border: "1px solid rgba(102,126,234,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontSize: 28, animation: "pulse 1s infinite" }}>🎨</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Генерую зображення...</div>
+      </div>}
+      {error && <div style={{ fontSize: 13, color: "#f87171" }}>❌ Не вдалось згенерувати зображення</div>}
+      <img src={url} alt={prompt} onLoad={() => setLoaded(true)} onError={() => setError(true)}
+        style={{ display: loaded ? "block" : "none", maxWidth: 300, borderRadius: 14, border: "1px solid rgba(102,126,234,0.3)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)" }} />
+      {loaded && <a href={url} download="ukrai-image.jpg" target="_blank" rel="noreferrer"
+        style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#a78bfa", textDecoration: "none" }}>⬇️ Зберегти</a>}
+    </div>
+  );
+};
+
 const formatMessage = (text, dark) => {
+  // Перевіряємо на [IMAGE: ...] теги
+  const imageMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
+  if (imageMatch) {
+    const beforeImage = text.slice(0, imageMatch.index).trim();
+    const prompt = imageMatch[1].trim();
+    return (
+      <div>
+        {beforeImage && <div style={{ marginBottom: 8 }}>{formatTextOnly(beforeImage, dark)}</div>}
+        <ImageMessage prompt={prompt} />
+      </div>
+    );
+  }
+  return formatTextOnly(text, dark);
+};
+
+const formatTextOnly = (text, dark) => {
   const parts = text.split(/(```[\s\S]*?```)/g);
   return parts.map((part, idx) => {
     if (part.startsWith("```")) {
@@ -89,21 +137,39 @@ const formatMessage = (text, dark) => {
 function LoginScreen({ onLogin }) {
   const [loginError, setLoginError] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
 
   const features = [
     { icon: "🧠", title: "Надрозумний", desc: "Llama 3.3 70B — одна з найкращих моделей у світі" },
     { icon: "⚡", title: "Блискавичний", desc: "Відповіді за секунди завдяки Groq API" },
     { icon: "🇺🇦", title: "Лише українською", desc: "Повністю україномовний асистент" },
-    { icon: "🌐", title: "З веб-пошуком", desc: "Актуальні новини, курси валют, погода" },
-    { icon: "✅", title: "Точні відповіді", desc: "Не вигадує факти, чесно визнає незнання" },
-    { icon: "💎", title: "Безкоштовний", desc: "Без підписок і прихованих платежів" },
+    { icon: "🖼️", title: "Генерація зображень", desc: "Малює картинки за твоїм описом" },
+    { icon: "🔊", title: "Голосовий ввід", desc: "Говори — бот розуміє українську" },
+    { icon: "💾", title: "Історія чатів", desc: "Зберігає розмови на твоєму пристрої" },
   ];
+
+  const loginCard = (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: isMobile ? "24px 20px" : "32px 28px", backdropFilter: "blur(20px)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: isMobile ? 36 : 48, marginBottom: 12, animation: "logoPulse 3s infinite" }}>✨</div>
+        <h3 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Почати спілкування</h3>
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>Увійди через Google щоб отримати доступ</p>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+        <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
+      </div>
+      {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#f87171", fontSize: 13, marginBottom: 12 }}>⚠️ {loginError}</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {["🔒 Твої дані захищені", "🚫 Не зберігаємо повідомлення на сервері", "⚡ Вхід займає секунду"].map((t, i) => (
+          <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>{t}</div>
+        ))}
+      </div>
+    </div>
+  );
 
   if (isMobile) {
     return (
@@ -113,26 +179,8 @@ function LoginScreen({ onLogin }) {
           <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 16px", boxShadow: "0 12px 40px rgba(102,126,234,0.45)", animation: "logoPulse 3s infinite ease-in-out" }}>🤖</div>
           <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1.5px", background: "linear-gradient(135deg, #667eea, #a78bfa, #63d1ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</h1>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>Асистент нового покоління</p>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 16, lineHeight: 1.3 }}>
-            Твій розумний <span style={{ background: "linear-gradient(135deg, #667eea, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI-помічник</span> 🇺🇦
-          </h2>
         </div>
-        <div style={{ margin: "0 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "24px 20px", backdropFilter: "blur(20px)", zIndex: 1 }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>✨</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Почати спілкування</h3>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Увійди через Google щоб отримати доступ</p>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-            <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка отримання даних"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
-          </div>
-          {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#f87171", fontSize: 13, marginBottom: 12 }}>⚠️ {loginError}</div>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {["🔒 Твої дані захищені", "🚫 Не зберігаємо повідомлення", "⚡ Вхід займає секунду"].map((t, i) => (
-              <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>{t}</div>
-            ))}
-          </div>
-        </div>
+        <div style={{ margin: "0 16px", zIndex: 1 }}>{loginCard}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "16px", zIndex: 1 }}>
           {features.map((f, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px" }}>
@@ -150,7 +198,6 @@ function LoginScreen({ onLogin }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#06040f", display: "flex", fontFamily: "'Outfit', sans-serif", overflow: "hidden" }}>
       <div style={{ position: "fixed", top: "-15%", left: "-5%", width: 800, height: 800, borderRadius: "50%", background: "radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%)", animation: "orbFloat 8s infinite ease-in-out", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "-20%", right: "30%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(118,75,162,0.12) 0%, transparent 70%)", animation: "orbFloat 10s infinite ease-in-out reverse", pointerEvents: "none" }} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px 64px", zIndex: 1, borderRight: "1px solid rgba(255,255,255,0.06)", overflowY: "auto" }}>
         <div style={{ animation: "fadeInUp 0.7s ease both", maxWidth: 560 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 48 }}>
@@ -161,7 +208,7 @@ function LoginScreen({ onLogin }) {
             </div>
           </div>
           <h2 style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", marginBottom: 12, lineHeight: 1.3 }}>Твій розумний<br /><span style={{ background: "linear-gradient(135deg, #667eea, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI-помічник</span> 🇺🇦</h2>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 44, lineHeight: 1.7 }}>Відповідає на будь-які питання, пише код, шукає в інтернеті — і все це українською мовою.</p>
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 44, lineHeight: 1.7 }}>Відповідає на будь-які питання, малює зображення, розпізнає голос — і все це українською.</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {features.map((f, i) => (
               <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "16px 18px", animation: `fadeInUp 0.6s ease ${0.1 + i * 0.07}s both` }}>
@@ -173,26 +220,8 @@ function LoginScreen({ onLogin }) {
           </div>
         </div>
       </div>
-      <div style={{ width: 460, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 44px", zIndex: 1, background: "rgba(255,255,255,0.015)", overflowY: "auto", animation: "fadeInUp 0.9s ease both" }}>
-        <div style={{ width: "100%" }}>
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontSize: 48, marginBottom: 14, animation: "logoPulse 3s infinite" }}>✨</div>
-            <h3 style={{ fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px", marginBottom: 10 }}>Почати спілкування</h3>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Увійди через Google щоб отримати доступ</p>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "32px 28px", backdropFilter: "blur(20px)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка отримання даних"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
-            </div>
-            {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#f87171", fontSize: 13, marginBottom: 16 }}>⚠️ {loginError}</div>}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-              {["🔒 Твої дані захищені", "🚫 Не зберігаємо повідомлення", "⚡ Вхід займає секунду"].map((t, i) => (
-                <div key={i} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>{t}</div>
-              ))}
-            </div>
-          </div>
-          <p style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.2)", marginTop: 20, lineHeight: 1.6 }}>Натискаючи кнопку входу, ти погоджуєшся з умовами використання</p>
-        </div>
+      <div style={{ width: 460, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 44px", zIndex: 1, background: "rgba(255,255,255,0.015)", overflowY: "auto" }}>
+        <div style={{ width: "100%" }}>{loginCard}</div>
       </div>
     </div>
   );
@@ -204,7 +233,6 @@ function ChatApp({ user, onLogout }) {
   const [apiMessages, setApiMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [activePreset, setActivePreset] = useState(PRESETS[0]);
@@ -212,19 +240,42 @@ function ChatApp({ user, onLogout }) {
   const [pinnedFacts, setPinnedFacts] = useState([]);
   const [showPinned, setShowPinned] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [fileContent, setFileContent] = useState(null);
   const [fileName, setFileName] = useState("");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  // 🔊 Голос
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+  // 💾 Історія
+  const [chatHistory, setChatHistory] = useState(loadChatHistory);
+  const [currentChatId, setCurrentChatId] = useState(null);
+
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  // Зберігаємо поточний чат в історію
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const chatId = currentChatId || Date.now().toString();
+    if (!currentChatId) setCurrentChatId(chatId);
+    const title = messages[0]?.content?.slice(0, 40) || "Новий чат";
+    const updated = chatHistory.filter(c => c.id !== chatId);
+    const newHistory = [{ id: chatId, title, date: new Date().toLocaleDateString("uk-UA"), messages, apiMessages, preset: activePreset }, ...updated].slice(0, 20);
+    setChatHistory(newHistory);
+    saveChatHistory(newHistory);
+  }, [messages]);
 
   const dark = darkMode;
   const bg = dark ? "#06040f" : "#f0f0f8";
@@ -234,17 +285,61 @@ function ChatApp({ user, onLogout }) {
   const subColor = dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)";
   const panelBg = dark ? "rgba(15,12,30,0.98)" : "rgba(255,255,255,0.98)";
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
   const getSystemPrompt = () => {
     let sys = BASE_SYSTEM;
     if (activePreset.prompt) sys = activePreset.prompt + "\n\n" + BASE_SYSTEM;
-    if (pinnedFacts.length > 0) sys += "\n\nЗАКРІПЛЕНІ ФАКТИ (завжди пам'ятай це):\n" + pinnedFacts.map((f, i) => `${i + 1}. ${f}`).join("\n");
+    if (pinnedFacts.length > 0) sys += "\n\nЗАКРІПЛЕНІ ФАКТИ:\n" + pinnedFacts.map((f, i) => `${i + 1}. ${f}`).join("\n");
     return sys;
+  };
+
+  // 🔊 Голосовий ввід
+  const toggleVoice = () => {
+    if (!voiceSupported) { alert("Голосовий ввід не підтримується у вашому браузері"); return; }
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "uk-UA";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      setInput(prev => prev + transcript);
+      setIsListening(false);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
 
   const copyMessage = (text, idx) => { navigator.clipboard.writeText(text); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
   const pinFact = (text) => { setPinnedFacts(prev => [...prev, text.slice(0, 200)]); };
+
+  const startNewChat = () => {
+    setMessages([]); setApiMessages([]); setCurrentChatId(null); setFileContent(null); setFileName("");
+    closeAll();
+  };
+
+  const loadChat = (chat) => {
+    setMessages(chat.messages);
+    setApiMessages(chat.apiMessages || []);
+    setActivePreset(chat.preset || PRESETS[0]);
+    setCurrentChatId(chat.id);
+    setShowHistory(false);
+  };
+
+  const deleteChat = (id, e) => {
+    e.stopPropagation();
+    const updated = chatHistory.filter(c => c.id !== id);
+    setChatHistory(updated);
+    saveChatHistory(updated);
+    if (currentChatId === id) startNewChat();
+  };
 
   const exportChat = (format) => {
     if (messages.length === 0) return;
@@ -267,6 +362,7 @@ function ChatApp({ user, onLogout }) {
     const reader = new FileReader();
     reader.onload = (ev) => { setFileContent(ev.target.result); setFileName(file.name); };
     reader.readAsText(file);
+    e.target.value = "";
   };
 
   const sendMessage = async () => {
@@ -277,7 +373,11 @@ function ChatApp({ user, onLogout }) {
 
     let apiText = text;
     if (fileContent) {
-      apiText = `ВАЖЛИВО: Я завантажив файл "${fileName}". Ось його ТОЧНИЙ вміст — не вигадуй нічого, аналізуй ТІЛЬКИ цей код:\n\`\`\`\n${fileContent}\n\`\`\`\n\nМоє питання про цей файл: ${text}\n\nПОВТОРЮЮ: відповідай ТІЛЬКИ на основі коду вище, не пиши інший код!`;
+      const ext = fileName.split(".").pop().toLowerCase();
+      const isCode = ["js","jsx","ts","tsx","py","html","css","json","md","txt","csv","vue","php","java","c","cpp","cs","go","rb","rs","swift"].includes(ext);
+      apiText = isCode
+        ? `Я завантажив файл "${fileName}" (${ext.toUpperCase()}). Ось його ПОВНИЙ вміст:\n\`\`\`${ext}\n${fileContent}\n\`\`\`\n\nМоє питання: ${text}\n\nАналізуй ТІЛЬКИ цей код. Знайди баги, поясни логіку, дай конкретні поради.`
+        : `Я завантажив файл "${fileName}". Його вміст:\n---\n${fileContent.slice(0, 8000)}\n---\n\nМоє питання: ${text}`;
     }
 
     const displayText = fileContent ? `📎 ${fileName}\n${text}` : text;
@@ -288,16 +388,12 @@ function ChatApp({ user, onLogout }) {
     setFileContent(null); setFileName("");
     setLoading(true);
 
-    const searchTriggers = [/новин|новост|сьогодні|зараз|поточн|останн|актуальн/i, /курс (долар|євро|валют|біткоін)/i, /погода/i, /знайди|пошукай/i];
-    if (searchTriggers.some(r => r.test(text))) setIsSearching(true);
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMessages }),
       });
-      setIsSearching(false);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (data.error) throw new Error(data.error.message || "API помилка");
@@ -306,7 +402,6 @@ function ChatApp({ user, onLogout }) {
       setMessages([...newDisplayMessages, assistantMsg]);
       setApiMessages([...newApiMessages, assistantMsg]);
     } catch (err) {
-      setIsSearching(false);
       const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання: " + err.message };
       setMessages([...newDisplayMessages, errMsg]);
       setApiMessages([...newApiMessages, errMsg]);
@@ -314,26 +409,28 @@ function ChatApp({ user, onLogout }) {
     setLoading(false);
   };
 
-  const suggestions = ["🧬 Поясни ДНК простими словами", "💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "🎨 Напиши CSS-анімацію"];
+  const suggestions = ["🎨 Намалюй красивий захід сонця", "💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "🖼️ Згенеруй логотип для стартапу"];
 
-  const SideBtn = ({ onClick, title, emoji, danger }) => (
+  const closeAll = () => { setShowPresets(false); setShowPinned(false); setShowExport(false); setShowMobileMenu(false); setShowHistory(false); };
+
+  const SideBtn = ({ onClick, title, emoji, danger, active }) => (
     <button onClick={onClick} title={title}
-      style={{ width: 44, height: 44, borderRadius: 13, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 19, display: "flex", alignItems: "center", justifyContent: "center", color: subColor, transition: "all 0.2s" }}
+      style={{ width: 44, height: 44, borderRadius: 13, background: active ? "rgba(102,126,234,0.25)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"), border: `1px solid ${active ? "rgba(102,126,234,0.5)" : borderColor}`, cursor: "pointer", fontSize: 19, display: "flex", alignItems: "center", justifyContent: "center", color: active ? "#a78bfa" : subColor, transition: "all 0.2s" }}
       onMouseEnter={e => { e.currentTarget.style.background = danger ? "rgba(239,68,68,0.15)" : "rgba(102,126,234,0.2)"; e.currentTarget.style.color = danger ? "#ef4444" : "#a78bfa"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"; e.currentTarget.style.color = subColor; }}>
+      onMouseLeave={e => { e.currentTarget.style.background = active ? "rgba(102,126,234,0.25)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"); e.currentTarget.style.color = active ? "#a78bfa" : subColor; }}>
       {emoji}
     </button>
   );
 
-  const closeAll = () => { setShowPresets(false); setShowPinned(false); setShowExport(false); setShowMobileMenu(false); };
-
   const mobileMenuItems = [
+    { emoji: "💬", label: "Новий чат", action: startNewChat },
+    { emoji: "📂", label: "Історія чатів", action: () => { setShowHistory(!showHistory); setShowMobileMenu(false); } },
     { emoji: "🎭", label: "Ролі/Пресети", action: () => { setShowPresets(!showPresets); setShowMobileMenu(false); } },
     { emoji: "📌", label: "Закріплені факти", action: () => { setShowPinned(!showPinned); setShowMobileMenu(false); } },
     { emoji: "📎", label: "Завантажити файл", action: () => { fileInputRef.current?.click(); setShowMobileMenu(false); } },
     { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); setShowMobileMenu(false); } },
     { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setShowMobileMenu(false); } },
-    { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) { setMessages([]); setApiMessages([]); setPinnedFacts([]); } setShowMobileMenu(false); }, danger: true },
+    { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) startNewChat(); setShowMobileMenu(false); }, danger: true },
   ];
 
   return (
@@ -353,10 +450,8 @@ function ChatApp({ user, onLogout }) {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => { setShowMobileMenu(!showMobileMenu); setShowPresets(false); setShowPinned(false); setShowExport(false); }}
-              style={{ width: 36, height: 36, borderRadius: 10, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>
-              ☰
-            </button>
+            <button onClick={() => { setShowMobileMenu(!showMobileMenu); setShowHistory(false); setShowPresets(false); }}
+              style={{ width: 36, height: 36, borderRadius: 10, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>☰</button>
             <div style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(102,126,234,0.5)" }} onClick={onLogout}>
               {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
             </div>
@@ -366,7 +461,7 @@ function ChatApp({ user, onLogout }) {
 
       {/* ── MOBILE MENU ── */}
       {isMobile && showMobileMenu && (
-        <div style={{ position: "absolute", top: 60, right: 10, width: 220, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 12, zIndex: 200, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
+        <div style={{ position: "absolute", top: 60, right: 10, width: 230, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 12, zIndex: 200, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
           {mobileMenuItems.map((item, i) => (
             <button key={i} onClick={item.action}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", cursor: "pointer", color: item.danger ? "#ef4444" : textColor, fontSize: 14, textAlign: "left" }}
@@ -385,25 +480,54 @@ function ChatApp({ user, onLogout }) {
           <div style={{ width: 72, background: sidebarBg, borderRight: `1px solid ${borderColor}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 10, flexShrink: 0, zIndex: 10 }}>
             <div style={{ width: 44, height: 44, borderRadius: 13, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 4px 20px rgba(102,126,234,0.4)", flexShrink: 0 }}>{activePreset.icon}</div>
             <div style={{ width: 36, height: 1, background: borderColor, margin: "4px 0" }} />
-            <SideBtn onClick={() => { setShowPresets(!showPresets); setShowPinned(false); setShowExport(false); }} title="Ролі/Пресети" emoji="🎭" />
-            <SideBtn onClick={() => { setShowPinned(!showPinned); setShowPresets(false); setShowExport(false); }} title="Закріплені факти" emoji="📌" />
+            <SideBtn onClick={startNewChat} title="Новий чат" emoji="💬" />
+            <SideBtn onClick={() => { setShowHistory(!showHistory); setShowPresets(false); setShowPinned(false); setShowExport(false); }} title="Історія чатів" emoji="📂" active={showHistory} />
+            <SideBtn onClick={() => { setShowPresets(!showPresets); setShowPinned(false); setShowExport(false); setShowHistory(false); }} title="Ролі/Пресети" emoji="🎭" active={showPresets} />
+            <SideBtn onClick={() => { setShowPinned(!showPinned); setShowPresets(false); setShowExport(false); setShowHistory(false); }} title="Закріплені факти" emoji="📌" active={showPinned} />
             <SideBtn onClick={() => fileInputRef.current?.click()} title="Завантажити файл" emoji="📎" />
-            <SideBtn onClick={() => { setShowExport(!showExport); setShowPresets(false); setShowPinned(false); }} title="Експорт чату" emoji="💾" />
+            <SideBtn onClick={() => { setShowExport(!showExport); setShowPresets(false); setShowPinned(false); setShowHistory(false); }} title="Експорт чату" emoji="💾" active={showExport} />
             <div style={{ flex: 1 }} />
             <SideBtn onClick={() => setDarkMode(!dark)} title={dark ? "Світла тема" : "Темна тема"} emoji={dark ? "☀️" : "🌙"} />
-            <SideBtn onClick={() => { if (window.confirm("Очистити чат?")) { setMessages([]); setApiMessages([]); setPinnedFacts([]); } }} title="Очистити чат" emoji="🗑" danger />
+            <SideBtn onClick={() => { if (window.confirm("Очистити чат?")) startNewChat(); }} title="Очистити чат" emoji="🗑" danger />
             <div style={{ width: 44, height: 44, borderRadius: 13, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(102,126,234,0.5)", flexShrink: 0 }} title="Вийти" onClick={onLogout}>
               {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>👤</div>}
             </div>
           </div>
         )}
 
-        <input ref={fileInputRef} type="file" accept=".txt,.js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.csv" style={{ display: "none" }} onChange={handleFileUpload} />
+        <input ref={fileInputRef} type="file" accept=".txt,.js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.csv,.vue,.php,.java,.c,.cpp,.cs,.go,.rb,.rs,.swift" style={{ display: "none" }} onChange={handleFileUpload} />
 
-        {/* ── PANELS (work on both mobile & desktop) ── */}
+        {/* ── HISTORY PANEL ── */}
+        {showHistory && (
+          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "75vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: subColor }}>📂 ІСТОРІЯ ЧАТІВ</div>
+              <button onClick={startNewChat} style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", border: "1px solid rgba(102,126,234,0.3)", color: "#a78bfa", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>+ Новий</button>
+            </div>
+            {chatHistory.length === 0
+              ? <div style={{ fontSize: 13, color: subColor, textAlign: "center", padding: "20px 0" }}>Немає збережених чатів</div>
+              : chatHistory.map(chat => (
+                <div key={chat.id} onClick={() => loadChat(chat)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, cursor: "pointer", marginBottom: 4, background: currentChatId === chat.id ? "rgba(102,126,234,0.15)" : "transparent", border: `1px solid ${currentChatId === chat.id ? "rgba(102,126,234,0.3)" : "transparent"}` }}
+                  onMouseEnter={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "rgba(102,126,234,0.08)"; }}
+                  onMouseLeave={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = "transparent"; }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: textColor, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                    <div style={{ fontSize: 11, color: subColor, marginTop: 2 }}>{chat.date} · {chat.messages.length} повідомлень</div>
+                  </div>
+                  <button onClick={(e) => deleteChat(chat.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14, padding: "2px 4px", opacity: 0.6, flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                    onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}>🗑</button>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* ── PRESETS PANEL ── */}
         {showPresets && (
           <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 280, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "70vh", overflowY: "auto" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12, letterSpacing: "0.5px" }}>🎭 ОБЕРІТЬ РОЛЬ</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>🎭 ОБЕРІТЬ РОЛЬ</div>
             {PRESETS.map(p => (
               <button key={p.id} onClick={() => { setActivePreset(p); setShowPresets(false); }}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 12, border: activePreset.id === p.id ? "1px solid rgba(102,126,234,0.5)" : "1px solid transparent", background: activePreset.id === p.id ? "rgba(102,126,234,0.15)" : "transparent", cursor: "pointer", marginBottom: 4, textAlign: "left" }}
@@ -420,6 +544,7 @@ function ChatApp({ user, onLogout }) {
           </div>
         )}
 
+        {/* ── PINNED PANEL ── */}
         {showPinned && (
           <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", maxHeight: "70vh", overflowY: "auto" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>📌 ЗАКРІПЛЕНІ ФАКТИ</div>
@@ -435,6 +560,7 @@ function ChatApp({ user, onLogout }) {
           </div>
         )}
 
+        {/* ── EXPORT PANEL ── */}
         {showExport && (
           <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 240, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 16, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 12 }}>💾 ЕКСПОРТ ЧАТУ</div>
@@ -463,8 +589,8 @@ function ChatApp({ user, onLogout }) {
                 </div>
                 <span style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-                  Llama 3.3 70B · Groq · Веб-пошук
-                  {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length} фактів</span>}
+                  Llama 3.3 70B · Groq · Зображення · Голос
+                  {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
                   {fileContent && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {fileName}</span>}
                 </span>
               </div>
@@ -482,7 +608,7 @@ function ChatApp({ user, onLogout }) {
                     {activePreset.id === "default" ? "Чим можу допомогти?" : `Режим: ${activePreset.name}`}
                   </h2>
                   <p style={{ fontSize: isMobile ? 13 : 14, color: subColor, maxWidth: 400, lineHeight: 1.7, margin: "0 auto" }}>
-                    {activePreset.id === "default" ? "Запитай про що завгодно — шукаю в інтернеті та даю точні відповіді!" : activePreset.prompt.slice(0, 120) + "..."}
+                    {activePreset.id === "default" ? "Запитай про що завгодно, попроси намалювати або говори голосом!" : activePreset.prompt.slice(0, 120) + "..."}
                   </p>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 8, maxWidth: 660, width: "100%" }}>
@@ -530,7 +656,7 @@ function ChatApp({ user, onLogout }) {
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
                 <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(102,126,234,0.3)" }}>{activePreset.icon}</div>
                 <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "8px 16px" }}>
-                  {isSearching ? <div style={{ display: "flex", alignItems: "center", gap: 8, color: subColor, fontSize: 13, padding: "4px 0" }}><span style={{ animation: "pulse 1s infinite" }}>🌐</span> Шукаю в інтернеті...</div> : <TypingDots />}
+                  <TypingDots />
                 </div>
               </div>
             )}
@@ -548,20 +674,30 @@ function ChatApp({ user, onLogout }) {
 
           {/* Input */}
           <div style={{ padding: isMobile ? "8px 10px 12px" : "12px 20px 14px", borderTop: `1px solid ${borderColor}`, background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
               onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(102,126,234,0.5)"}
               onBlurCapture={e => e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}>
               <textarea ref={textareaRef} value={input}
                 onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !isMobile) { e.preventDefault(); sendMessage(); } }}
-                placeholder={activePreset.id === "default" ? "Запитай мене про що завгодно..." : `Режим: ${activePreset.name} — введи запит...`}
-                rows={1} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: textColor, fontSize: isMobile ? 16 : 15, fontFamily: "'Outfit', sans-serif", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
+                placeholder={isListening ? "🎤 Слухаю..." : (activePreset.id === "default" ? "Запитай або попроси намалювати..." : `Режим: ${activePreset.name}...`)}
+                rows={1} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: isListening ? "#a78bfa" : textColor, fontSize: isMobile ? 16 : 15, fontFamily: "'Outfit', sans-serif", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
+
+              {/* 🔊 Голосова кнопка */}
+              {voiceSupported && (
+                <button onClick={toggleVoice}
+                  style={{ width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: 10, border: "none", background: isListening ? "rgba(239,68,68,0.2)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, transition: "all 0.2s", animation: isListening ? "pulse 1s infinite" : "none" }}>
+                  {isListening ? "🔴" : "🎤"}
+                </button>
+              )}
+
+              {/* Надіслати */}
               <button onClick={sendMessage} disabled={loading || !input.trim()}
                 style={{ width: isMobile ? 40 : 42, height: isMobile ? 40 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #667eea, #764ba2)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(102,126,234,0.4)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
-            {!isMobile && <p style={{ textAlign: "center", fontSize: 11, color: subColor, marginTop: 6, opacity: 0.6 }}>Enter — надіслати · Shift+Enter — новий рядок</p>}
+            {!isMobile && <p style={{ textAlign: "center", fontSize: 11, color: subColor, marginTop: 6, opacity: 0.6 }}>Enter — надіслати · Shift+Enter — новий рядок · 🎤 — голос</p>}
           </div>
         </div>
       </div>
@@ -587,9 +723,7 @@ export default function App() {
         ::-webkit-scrollbar-thumb { background: rgba(102,126,234,0.3); border-radius: 4px; }
         textarea { resize: none; }
         textarea::placeholder { color: rgba(150,150,180,0.5); }
-        @media (max-width: 640px) {
-          input, textarea, select { font-size: 16px !important; }
-        }
+        @media (max-width: 640px) { input, textarea, select { font-size: 16px !important; } }
       `}</style>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         {user
