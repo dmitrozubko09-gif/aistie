@@ -1136,7 +1136,27 @@ function ChatApp({ user, onLogout }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ukrai_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const handleLogin = (cr) => {
+    const userData = decodeGoogleJWT(cr.credential);
+    try { localStorage.setItem("ukrai_user", JSON.stringify(userData)); } catch {}
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Вийти?")) {
+      googleLogout();
+      try { localStorage.removeItem("ukrai_user"); } catch {}
+      setUser(null);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -1164,8 +1184,8 @@ export default function App() {
       `}</style>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         {user
-          ? <ChatApp user={user} onLogout={() => { if (window.confirm("Вийти?")) { googleLogout(); setUser(null); } }} />
-          : <LoginScreen onLogin={(cr) => setUser(decodeGoogleJWT(cr.credential))} />
+          ? <ChatApp user={user} onLogout={handleLogout} />
+          : <LoginScreen onLogin={handleLogin} />
         }
       </GoogleOAuthProvider>
     </>
