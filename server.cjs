@@ -10,16 +10,18 @@ const apiKey = process.env.OPENAI_API_KEY
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { messages, system } = req.body;
+    const { messages, system, model } = req.body;
+    const ALLOWED_MODELS = ["llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768","gemma2-9b-it"];
+    const selectedModel = ALLOWED_MODELS.includes(model) ? model : "llama-3.3-70b-versatile";
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + API_KEY,
+        "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: selectedModel,
         max_tokens: 8192,
         temperature: 0.6,
         top_p: 0.9,

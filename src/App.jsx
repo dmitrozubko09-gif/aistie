@@ -12,6 +12,14 @@ const PRESETS = [
   { id: "analyst", icon: "📊", name: "Аналітик", prompt: "Ти — бізнес-аналітик та стратег. При аналізі: використовуй структуровані фреймворки (SWOT, 5W, etc.), спирайся на дані та факти, вказуй ризики та можливості, давай конкретні рекомендації." },
 ];
 
+
+const AI_MODELS = [
+  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", badge: "🔥 Топ", desc: "Найкраща якість" },
+  { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", badge: "⚡ Швидка", desc: "Блискавична" },
+  { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", badge: "🧠 Розумна", desc: "Великий контекст" },
+  { id: "gemma2-9b-it", name: "Gemma 2 9B", badge: "💎 Google", desc: "Від Google" },
+];
+
 const BASE_SYSTEM = `Ти — УкрАI, україномовний AI-асистент. Твоя мова — ТІЛЬКИ УКРАЇНСЬКА. Російська ЗАБОРОНЕНА.
 
 СТИЛЬ СПІЛКУВАННЯ:
@@ -467,11 +475,47 @@ function ChatApp({ user, onLogout }) {
   const [totalRequests, setTotalRequests] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_requests") || "0"); } catch { return 0; } });
   const [streamingText, setStreamingText] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(() => { try { return localStorage.getItem("ukrai_model") || "llama-3.3-70b-versatile"; } catch { return "llama-3.3-70b-versatile"; } });
+  const [accentColor, setAccentColor] = useState(() => { try { return localStorage.getItem("ukrai_accent") || "#6366f1"; } catch { return "#6366f1"; } });
+  const [soundEnabled, setSoundEnabled] = useState(() => { try { return localStorage.getItem("ukrai_sound") !== "false"; } catch { return true; } });
+  const [chatSearch, setChatSearch] = useState("");
+  const [typingEffect, setTypingEffect] = useState("");
+  const typingIntervalRef = useRef(null);
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  const playSound = () => {
+    if (!soundEnabled) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.3);
+    } catch {}
+  };
+
+  const startTypingEffect = (fullText, onDone) => {
+    setTypingEffect("");
+    let i = 0;
+    if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+    typingIntervalRef.current = setInterval(() => {
+      i++;
+      setTypingEffect(fullText.slice(0, i));
+      if (i >= fullText.length) {
+        clearInterval(typingIntervalRef.current);
+        setTypingEffect("");
+        onDone(fullText);
+      }
+    }, 8);
+  };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
@@ -572,7 +616,7 @@ function ChatApp({ user, onLogout }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: false }),
+        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: false, model: selectedModel }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -583,8 +627,11 @@ function ChatApp({ user, onLogout }) {
       const newReqs = totalRequests + 1;
       setTotalTokensIn(newIn); setTotalTokensOut(newOut); setTotalRequests(newReqs);
       try { localStorage.setItem("ukrai_tokens_in", newIn); localStorage.setItem("ukrai_tokens_out", newOut); localStorage.setItem("ukrai_requests", newReqs); } catch {}
-      const aMsg = { role: "assistant", content: reply };
-      setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
+      playSound();
+      startTypingEffect(reply, (full) => {
+        const aMsg = { role: "assistant", content: full };
+        setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
+      });
     } catch (err) {
       const errMsg = { role: "assistant", content: "⚠️ Помилка: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
@@ -630,6 +677,9 @@ function ChatApp({ user, onLogout }) {
     { emoji: "💾", label: "Експорт чату", action: () => setMobilePanelOpen("export") },
     { emoji: "📊", label: "Аналітика", action: () => setMobilePanelOpen("stats") },
     { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setMobilePanelOpen(null); } },
+    { emoji: soundEnabled ? "🔔" : "🔕", label: soundEnabled ? "Звук увімкнено" : "Звук вимкнено", action: () => { setSoundEnabled(p => { const v = !p; try { localStorage.setItem("ukrai_sound", v); } catch {} return v; }); setMobilePanelOpen(null); } },
+    { emoji: "🤖", label: "Вибір моделі AI", action: () => setMobilePanelOpen("models") },
+    { emoji: "🎨", label: "Колір інтерфейсу", action: () => setMobilePanelOpen("colors") },
     { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) startNewChat(); }, danger: true },
   ];
 
@@ -747,6 +797,36 @@ function ChatApp({ user, onLogout }) {
         </MobileBottomSheet>
       )}
 
+      {/* MOBILE: Models sheet */}
+      {isMobile && mobilePanelOpen === "models" && (
+        <MobileBottomSheet title="Вибір моделі AI">
+          <div style={{ padding: "0 12px 12px" }}>
+            {AI_MODELS.map(m => (
+              <button key={m.id} onClick={() => { setSelectedModel(m.id); try { localStorage.setItem("ukrai_model", m.id); } catch {} setMobilePanelOpen(null); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 14px", borderRadius: 14, border: selectedModel === m.id ? `1px solid ${accentColor}55` : `1px solid ${borderColor}`, background: selectedModel === m.id ? `${accentColor}15` : "transparent", cursor: "pointer", marginBottom: 6, textAlign: "left", fontFamily: "inherit" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, color: textColor, fontWeight: selectedModel === m.id ? 600 : 400 }}>{m.name}</div>
+                  <div style={{ fontSize: 12, color: subColor, marginTop: 2 }}>{m.badge} · {m.desc}</div>
+                </div>
+                {selectedModel === m.id && <span style={{ color: accentColor, fontSize: 20 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {/* MOBILE: Colors sheet */}
+      {isMobile && mobilePanelOpen === "colors" && (
+        <MobileBottomSheet title="Колір інтерфейсу">
+          <div style={{ padding: "0 20px 20px", display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", paddingTop: 12 }}>
+            {["#6366f1","#8b5cf6","#ec4899","#06b6d4","#10b981","#f59e0b","#ef4444"].map(c => (
+              <div key={c} onClick={() => { setAccentColor(c); try { localStorage.setItem("ukrai_accent", c); } catch {} setMobilePanelOpen(null); }}
+                style={{ width: 52, height: 52, borderRadius: "50%", background: c, cursor: "pointer", border: accentColor === c ? "4px solid #fff" : "4px solid transparent", boxSizing: "border-box", transition: "transform 0.15s", transform: accentColor === c ? "scale(1.2)" : "scale(1)" }} />
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
       {/* MOBILE HEADER */}
       {isMobile && (
         <div style={{ padding: "10px 14px", paddingTop: "max(10px, env(safe-area-inset-top))", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(10,10,15,0.97)" : "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", flexShrink: 0, zIndex: 20 }}>
@@ -797,7 +877,7 @@ function ChatApp({ user, onLogout }) {
               <>
                 <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${accentColor}, ${accentColor}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
                     <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
                   </div>
                   <button onClick={startNewChat} title="Новий чат"
@@ -816,7 +896,14 @@ function ChatApp({ user, onLogout }) {
                   ) : (
                     <>
                       <div style={{ fontSize: 11, fontWeight: 700, color: subColor, padding: "6px 8px 4px", letterSpacing: "0.05em" }}>ВАШІ ЧАТИ</div>
-                      {chatHistory.map(chat => (
+                      <div style={{ padding: "4px 4px 8px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", borderRadius: 10, padding: "6px 10px", border: `1px solid ${borderColor}` }}>
+                          <span style={{ fontSize: 13, color: subColor }}>🔍</span>
+                          <input value={chatSearch} onChange={e => setChatSearch(e.target.value)} placeholder="Пошук чатів..." style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 12, color: textColor, fontFamily: "inherit" }} />
+                          {chatSearch && <button onClick={() => setChatSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: subColor, fontSize: 14, padding: 0 }}>✕</button>}
+                        </div>
+                      </div>
+                      {chatHistory.filter(c => !chatSearch || c.title.toLowerCase().includes(chatSearch.toLowerCase())).map(chat => (
                         <div key={chat.id} onClick={() => loadChat(chat)}
                           style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, cursor: "pointer", marginBottom: 2, background: currentChatId === chat.id ? (dark ? "rgba(99,102,241,0.15)" : "rgba(102,126,234,0.12)") : "transparent", transition: "background 0.15s" }}
                           onMouseEnter={e => { if (currentChatId !== chat.id) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"; }}
@@ -916,7 +1003,7 @@ function ChatApp({ user, onLogout }) {
                   </div>
                   <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-                    Llama 3.3 70B · Groq
+                    {AI_MODELS.find(m => m.id === selectedModel)?.name || "Llama 3.3 70B"} · Groq
                     {pinnedFacts.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📌 {pinnedFacts.length}</span>}
                     {activeFile && <span style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e", padding: "1px 6px", borderRadius: 10, fontSize: 10 }}>📎 {activeFile.name}</span>}
                   </div>
@@ -968,7 +1055,7 @@ function ChatApp({ user, onLogout }) {
                   <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17, flexShrink: 0, marginTop: 2, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 )}
                 <div style={{ maxWidth: isMobile ? "88%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
-                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
+                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
                     {m.role === "assistant" ? formatMessage(m.content, dark, setPreviewHtml) : m.content}
                   </div>
                   {m.role === "assistant" && (
@@ -994,10 +1081,10 @@ function ChatApp({ user, onLogout }) {
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
                 <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "88%" : "74%" }}>
-                  {streamingText ? (
+                  {typingEffect ? (
                     <div style={{ fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, color: textColor }}>
-                      {formatTextOnly(streamingText, dark, setPreviewHtml)}
-                      <span style={{ display: "inline-block", width: 8, height: 14, background: "#a5b4fc", borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
+                      {formatTextOnly(typingEffect, dark, setPreviewHtml)}
+                      <span style={{ display: "inline-block", width: 8, height: 14, background: accentColor, borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
                     </div>
                   ) : <TypingDots />}
                 </div>
@@ -1038,7 +1125,7 @@ function ChatApp({ user, onLogout }) {
                 </button>
               )}
               <button onClick={sendMessage} disabled={loading || !input.trim()}
-                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
+                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
@@ -1052,6 +1139,43 @@ function ChatApp({ user, onLogout }) {
             {showRightPanel && (
               <div style={{ padding: "14px 14px", overflowY: "auto", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 12, letterSpacing: "0.05em" }}>ІНСТРУМЕНТИ</div>
+                {/* Model selector */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🤖 Модель AI</div>
+                  {AI_MODELS.map(m => (
+                    <button key={m.id} onClick={() => { setSelectedModel(m.id); try { localStorage.setItem("ukrai_model", m.id); } catch {} }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: selectedModel === m.id ? `1px solid ${accentColor}55` : "1px solid transparent", background: selectedModel === m.id ? `${accentColor}18` : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
+                      onMouseEnter={e => e.currentTarget.style.background = `${accentColor}10`}
+                      onMouseLeave={e => e.currentTarget.style.background = selectedModel === m.id ? `${accentColor}18` : "transparent"}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: textColor, fontWeight: selectedModel === m.id ? 600 : 400 }}>{m.name}</div>
+                        <div style={{ fontSize: 10, color: subColor }}>{m.badge} · {m.desc}</div>
+                      </div>
+                      {selectedModel === m.id && <span style={{ color: accentColor, fontSize: 14 }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+                {/* Accent color */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🎨 Колір акценту</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {["#6366f1","#8b5cf6","#ec4899","#06b6d4","#10b981","#f59e0b","#ef4444"].map(c => (
+                      <div key={c} onClick={() => { setAccentColor(c); try { localStorage.setItem("ukrai_accent", c); } catch {} }}
+                        style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: accentColor === c ? "3px solid #fff" : "3px solid transparent", boxSizing: "border-box", transition: "transform 0.15s", transform: accentColor === c ? "scale(1.15)" : "scale(1)" }} />
+                    ))}
+                  </div>
+                </div>
+                {/* Sound toggle */}
+                <div style={{ marginBottom: 16 }}>
+                  <button onClick={() => { setSoundEnabled(p => { const v = !p; try { localStorage.setItem("ukrai_sound", v); } catch {} return v; }); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 12, border: `1px solid ${borderColor}`, background: "transparent", cursor: "pointer", fontFamily: "inherit" }}>
+                    <span style={{ fontSize: 13, color: textColor }}>🔔 Звук відповіді</span>
+                    <div style={{ width: 40, height: 22, borderRadius: 11, background: soundEnabled ? accentColor : "rgba(255,255,255,0.15)", position: "relative", transition: "background 0.2s" }}>
+                      <div style={{ position: "absolute", top: 2, left: soundEnabled ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                    </div>
+                  </button>
+                </div>
+                <div style={{ height: 1, background: borderColor, margin: "4px 0 12px" }} />
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🎭 Роль</div>
                   {PRESETS.map(p => (
