@@ -195,6 +195,15 @@ const ImageMessage = ({ prompt }) => {
 };
 
 // ── FORMAT HELPERS ─────────────────────────────────────────────
+// Renders inline **bold** and `code` within a line
+const renderInline = (text, dark) => {
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) return <strong key={i} style={{ color: dark ? "#c4b5fd" : "#5b21b6" }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("`") && p.endsWith("`")) return <code key={i} style={{ background: dark ? "rgba(102,126,234,0.2)" : "rgba(102,126,234,0.12)", color: dark ? "#a5f3fc" : "#0e7490", borderRadius: 4, padding: "1px 5px", fontSize: "0.9em", fontFamily: "monospace" }}>{p.slice(1, -1)}</code>;
+    return p;
+  });
+};
 const formatMessage = (text, dark, onPreview) => {
   const imgMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
   if (imgMatch) {
@@ -239,12 +248,12 @@ const formatTextOnly = (text, dark, onPreview) => {
       );
     }
     return part.split("\n").map((line, i) => {
-      if (line.match(/^#{1,3}\s/)) return <div key={i} style={{ fontWeight: 700, fontSize: 15, color: dark ? "#e2d9f3" : "#3730a3", margin: "10px 0 4px" }}>{line.replace(/^#{1,3}\s/, "")}</div>;
-      if (line.startsWith("**") && line.endsWith("**")) return <div key={i} style={{ fontWeight: 700, color: dark ? "#c4b5fd" : "#5b21b6", marginBottom: 4 }}>{line.slice(2, -2)}</div>;
-      if (line.startsWith("- ") || line.startsWith("• ")) return <div key={i} style={{ paddingLeft: 16, marginBottom: 4, display: "flex", gap: 8 }}><span style={{ color: "#818cf8", flexShrink: 0 }}>▸</span><span>{line.slice(2)}</span></div>;
-      if (/^\d+\.\s/.test(line)) { const num = line.match(/^(\d+)\./)[1]; return <div key={i} style={{ paddingLeft: 8, marginBottom: 5, display: "flex", gap: 10 }}><span style={{ color: "#818cf8", fontWeight: 700, minWidth: 20 }}>{num}.</span><span>{line.replace(/^\d+\.\s/, "")}</span></div>; }
+      if (line.match(/^#{1,3}\s/)) return <div key={i} style={{ fontWeight: 700, fontSize: 15, color: dark ? "#e2d9f3" : "#3730a3", margin: "10px 0 4px" }}>{renderInline(line.replace(/^#{1,3}\s/, ""), dark)}</div>;
+      if (line.startsWith("**") && line.endsWith("**") && line.slice(2,-2).indexOf("**") === -1) return <div key={i} style={{ fontWeight: 700, color: dark ? "#c4b5fd" : "#5b21b6", marginBottom: 4 }}>{renderInline(line.slice(2, -2), dark)}</div>;
+      if (line.startsWith("- ") || line.startsWith("• ")) return <div key={i} style={{ paddingLeft: 16, marginBottom: 4, display: "flex", gap: 8 }}><span style={{ color: "#818cf8", flexShrink: 0 }}>▸</span><span>{renderInline(line.slice(2), dark)}</span></div>;
+      if (/^\d+\.\s/.test(line)) { const num = line.match(/^(\d+)\./)[1]; return <div key={i} style={{ paddingLeft: 8, marginBottom: 5, display: "flex", gap: 10 }}><span style={{ color: "#818cf8", fontWeight: 700, minWidth: 20 }}>{num}.</span><span>{renderInline(line.replace(/^\d+\.\s/, ""), dark)}</span></div>; }
       if (line === "") return <div key={i} style={{ height: 6 }} />;
-      return <div key={i} style={{ marginBottom: 3, lineHeight: 1.7 }}>{line}</div>;
+      return <div key={i} style={{ marginBottom: 3, lineHeight: 1.7 }}>{renderInline(line, dark)}</div>;
     });
   });
 };
@@ -369,6 +378,12 @@ function ChatApp({ user, onLogout }) {
   const [voiceSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
   const [chatHistory, setChatHistory] = useState(loadChatHistory);
   const [currentChatId, setCurrentChatId] = useState(null);
+  // 📊 Аналітика
+  const [showStats, setShowStats] = useState(false);
+  const [totalTokensIn, setTotalTokensIn] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_in") || "0"); } catch { return 0; } });
+  const [totalTokensOut, setTotalTokensOut] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_tokens_out") || "0"); } catch { return 0; } });
+  const [totalRequests, setTotalRequests] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_requests") || "0"); } catch { return 0; } });
+  const [streamingText, setStreamingText] = useState("");
 
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -420,7 +435,7 @@ function ChatApp({ user, onLogout }) {
   const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); closeAll(); };
   const loadChat = (chat) => { setMessages(chat.messages); setApiMessages(chat.apiMessages || []); setActivePreset(chat.preset || PRESETS[0]); setCurrentChatId(chat.id); setShowHistory(false); };
   const deleteChat = (id, e) => { e.stopPropagation(); const u = chatHistory.filter(c => c.id !== id); setChatHistory(u); saveChatHistory(u); if (currentChatId === id) startNewChat(); };
-  const closeAll = () => { setShowPresets(false); setShowPinned(false); setShowExport(false); setShowMobileMenu(false); setShowHistory(false); };
+  const closeAll = () => { setShowPresets(false); setShowPinned(false); setShowExport(false); setShowMobileMenu(false); setShowHistory(false); setShowStats(false); };
 
   const exportChat = (format) => {
     if (messages.length === 0) return;
@@ -461,16 +476,50 @@ function ChatApp({ user, onLogout }) {
     const newApiMsgs = [...apiMessages, { role: "user", content: apiText }];
     const newDispMsgs = [...messages, { role: "user", content: displayText }];
     setMessages(newDispMsgs); setApiMessages(newApiMsgs);
-    setActiveFile(null); setLoading(true);
+    setActiveFile(null); setLoading(true); setStreamingText("");
+
     try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs }) });
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system: getSystemPrompt(), messages: newApiMsgs, stream: true })
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "API помилка");
-      const reply = data.content?.map(b => b.text).join("") || "Порожня відповідь.";
+
+      // ── Streaming читання ──────────────────────────────────────
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      let finalIn = 0, finalOut = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
+        for (const line of lines) {
+          const raw = line.slice(6);
+          if (raw === "[DONE]") continue;
+          try {
+            const chunk = JSON.parse(raw);
+            if (chunk.delta) { fullText += chunk.delta; setStreamingText(fullText); }
+            if (chunk.done) { finalIn = chunk.inputTokens || 0; finalOut = chunk.outputTokens || 0; }
+          } catch {}
+        }
+      }
+
+      // Зберегти в аналітику
+      const newIn = totalTokensIn + finalIn;
+      const newOut = totalTokensOut + finalOut;
+      const newReqs = totalRequests + 1;
+      setTotalTokensIn(newIn); setTotalTokensOut(newOut); setTotalRequests(newReqs);
+      try { localStorage.setItem("ukrai_tokens_in", newIn); localStorage.setItem("ukrai_tokens_out", newOut); localStorage.setItem("ukrai_requests", newReqs); } catch {}
+
+      const reply = fullText || "Порожня відповідь.";
       const aMsg = { role: "assistant", content: reply };
+      setStreamingText("");
       setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
     } catch (err) {
+      setStreamingText("");
       const errMsg = { role: "assistant", content: "⚠️ Помилка з'єднання: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
     }
@@ -496,6 +545,7 @@ function ChatApp({ user, onLogout }) {
     { emoji: "📌", label: "Закріплені факти", action: () => { setShowPinned(!showPinned); setShowMobileMenu(false); } },
     { emoji: "📎", label: "Завантажити файл", action: () => { fileInputRef.current?.click(); setShowMobileMenu(false); } },
     { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); setShowMobileMenu(false); } },
+    { emoji: "📊", label: "Аналітика", action: () => { setShowStats(!showStats); setShowMobileMenu(false); } },
     { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setShowMobileMenu(false); } },
     { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) startNewChat(); setShowMobileMenu(false); }, danger: true },
   ];
@@ -571,6 +621,7 @@ function ChatApp({ user, onLogout }) {
             <SideBtn onClick={() => { setShowPinned(!showPinned); setShowPresets(false); setShowExport(false); setShowHistory(false); }} title="Закріплені факти" emoji="📌" active={showPinned} />
             <SideBtn onClick={() => fileInputRef.current?.click()} title="Завантажити файл" emoji="📎" />
             <SideBtn onClick={() => { setShowExport(!showExport); setShowPresets(false); setShowPinned(false); setShowHistory(false); }} title="Експорт чату" emoji="💾" active={showExport} />
+            <SideBtn onClick={() => { setShowStats(!showStats); setShowPresets(false); setShowPinned(false); setShowHistory(false); setShowExport(false); }} title="Аналітика" emoji="📊" active={showStats} />
             <div style={{ flex: 1 }} />
             <SideBtn onClick={() => setDarkMode(!dark)} title={dark ? "Світла тема" : "Темна тема"} emoji={dark ? "☀️" : "🌙"} />
             <SideBtn onClick={() => { if (window.confirm("Очистити чат?")) startNewChat(); }} title="Очистити чат" emoji="🗑" danger />
@@ -653,6 +704,33 @@ function ChatApp({ user, onLogout }) {
               </button>
             ))}
             {messages.length === 0 && <div style={{ fontSize: 12, color: subColor, textAlign: "center", marginTop: 8 }}>Чат порожній</div>}
+          </div>
+        )}
+
+        {/* STATS PANEL */}
+        {showStats && (
+          <div style={{ position: "absolute", left: isMobile ? 10 : 80, right: isMobile ? 10 : "auto", top: isMobile ? 60 : 60, width: isMobile ? "auto" : 300, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 20, zIndex: 100, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: subColor, marginBottom: 16 }}>📊 АНАЛІТИКА ВИКОРИСТАННЯ</div>
+            {[
+              { icon: "📨", label: "Всього запитів", value: totalRequests },
+              { icon: "📥", label: "Токенів вхідних", value: totalTokensIn.toLocaleString("uk-UA") },
+              { icon: "📤", label: "Токенів вихідних", value: totalTokensOut.toLocaleString("uk-UA") },
+              { icon: "💬", label: "Повідомлень у чаті", value: messages.length },
+              { icon: "📚", label: "Збережених чатів", value: chatHistory.length },
+              { icon: "📌", label: "Закріплених фактів", value: pinnedFacts.length },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, background: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>{s.icon}</span>
+                  <span style={{ fontSize: 13, color: subColor }}>{s.label}</span>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 700, color: textColor }}>{s.value}</span>
+              </div>
+            ))}
+            <button onClick={() => { if (window.confirm("Скинути всю статистику?")) { setTotalTokensIn(0); setTotalTokensOut(0); setTotalRequests(0); try { localStorage.removeItem("ukrai_tokens_in"); localStorage.removeItem("ukrai_tokens_out"); localStorage.removeItem("ukrai_requests"); } catch {} } }}
+              style={{ width: "100%", marginTop: 10, padding: "8px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+              🗑 Скинути статистику
+            </button>
           </div>
         )}
 
@@ -739,8 +817,13 @@ function ChatApp({ user, onLogout }) {
             {loading && (
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
                 <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(102,126,234,0.3)" }}>{activePreset.icon}</div>
-                <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "8px 16px" }}>
-                  <TypingDots />
+                <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "85%" : "74%" }}>
+                  {streamingText ? (
+                    <div style={{ fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, color: textColor }}>
+                      {formatTextOnly(streamingText, dark, setPreviewHtml)}
+                      <span style={{ display: "inline-block", width: 8, height: 14, background: "#a78bfa", borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
+                    </div>
+                  ) : <TypingDots />}
                 </div>
               </div>
             )}
