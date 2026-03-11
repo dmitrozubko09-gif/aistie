@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { GoogleOAuthProvider, GoogleLogin, googleLogout } from "@react-oauth/google";
 
 const GOOGLE_CLIENT_ID = "709769823975-979bjivkuo95agn5j0g8rtloeu45iorf.apps.googleusercontent.com";
@@ -37,6 +37,17 @@ function decodeGoogleJWT(token) {
   } catch { return { name: "Користувач", email: "", picture: null }; }
 }
 
+// ── HOOK: safe mobile detection ────────────────────────────────
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 640 : false);
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return isMobile;
+}
+
 const TypingDots = () => (
   <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 2px" }}>
     {[0, 1, 2].map(i => (
@@ -44,7 +55,6 @@ const TypingDots = () => (
     ))}
   </div>
 );
-
 
 // ── HTML PREVIEW MODAL ─────────────────────────────────────────
 function HtmlPreviewModal({ html, onClose }) {
@@ -72,10 +82,12 @@ function HtmlPreviewModal({ html, onClose }) {
   );
 }
 
-// ── FILE MANAGER MODAL ─────────────────────────────────────────
+// ── FILE MANAGER MODAL (mobile-first) ──────────────────────────
 function FileManagerModal({ files, dark, onClose, onUseFile, onRemoveFile }) {
   const [sel, setSel] = useState(files[0] || null);
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState("list"); // "list" | "content" on mobile
+  const isMobile = useIsMobile();
   const tc = dark ? "#fff" : "#1a1a2e";
   const sc = dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)";
   const bc = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
@@ -89,80 +101,117 @@ function FileManagerModal({ files, dark, onClose, onUseFile, onRemoveFile }) {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSelectFile = (f) => {
+    setSel(f);
+    if (isMobile) setView("content");
+  };
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Outfit', sans-serif" }}>
-      <div style={{ width: "100%", maxWidth: 900, height: "82vh", background: pbg, borderRadius: 22, border: `1px solid ${bc}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 40px 100px rgba(0,0,0,0.7)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, fontFamily: "'Outfit', sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 900, height: isMobile ? "90vh" : "82vh", background: pbg, borderRadius: isMobile ? "22px 22px 0 0" : 22, border: isMobile ? "none" : `1px solid ${bc}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 40px 100px rgba(0,0,0,0.7)" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${bc}`, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isMobile && view === "content" && (
+              <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: tc, padding: "0 4px 0 0" }}>‹</button>
+            )}
             <span style={{ fontSize: 22 }}>📁</span>
-            <span style={{ fontWeight: 700, fontSize: 16, color: tc }}>Менеджер файлів</span>
-            <span style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", color: "#a78bfa", padding: "2px 10px", borderRadius: 20 }}>
-              {files.length} {files.length === 1 ? "файл" : files.length < 5 ? "файли" : "файлів"}
-            </span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: tc }}>{isMobile && view === "content" && sel ? sel.name : "Менеджер файлів"}</span>
+            {!(isMobile && view === "content") && (
+              <span style={{ fontSize: 12, background: "rgba(102,126,234,0.2)", color: "#a78bfa", padding: "2px 10px", borderRadius: 20 }}>
+                {files.length} {files.length === 1 ? "файл" : files.length < 5 ? "файли" : "файлів"}
+              </span>
+            )}
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: `1px solid ${bc}`, background: "transparent", cursor: "pointer", fontSize: 16, color: sc, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
 
-        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          {/* File list sidebar */}
-          <div style={{ width: 220, borderRight: `1px solid ${bc}`, overflowY: "auto", padding: "8px", flexShrink: 0, background: dark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.02)" }}>
-            {files.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 12px", color: sc }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
-                <div style={{ fontSize: 13 }}>Файлів немає</div>
-              </div>
-            ) : files.map((f, i) => (
-              <div key={i} onClick={() => setSel(f)}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 11, cursor: "pointer", marginBottom: 3, background: sel?.name === f.name ? "rgba(102,126,234,0.18)" : "transparent", border: `1px solid ${sel?.name === f.name ? "rgba(102,126,234,0.35)" : "transparent"}`, transition: "all 0.15s" }}
-                onMouseEnter={e => { if (sel?.name !== f.name) e.currentTarget.style.background = "rgba(102,126,234,0.08)"; }}
-                onMouseLeave={e => { if (sel?.name !== f.name) e.currentTarget.style.background = "transparent"; }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{icon(f.name)}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: tc, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
-                  <div style={{ fontSize: 10, color: sc, marginTop: 1 }}>{(f.content.length / 1024).toFixed(1)} KB · {f.content.split("\n").length} рядків</div>
-                </div>
-              </div>
-            ))}
+        {/* Mobile: action bar when viewing file */}
+        {isMobile && view === "content" && sel && (
+          <div style={{ display: "flex", gap: 8, padding: "10px 16px", borderBottom: `1px solid ${bc}`, flexShrink: 0, overflowX: "auto" }}>
+            <button onClick={() => { onUseFile(sel); onClose(); }}
+              style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(102,126,234,0.4)", background: "rgba(102,126,234,0.15)", color: "#a78bfa", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+              📎 У чат
+            </button>
+            <button onClick={copyFile}
+              style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: `1px solid ${bc}`, background: "transparent", color: tc, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+              {copied ? "✅" : "📋 Копія"}
+            </button>
+            <button onClick={() => { onRemoveFile(sel.name); setSel(files.find(f => f.name !== sel.name) || null); setView("list"); }}
+              style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+              🗑
+            </button>
           </div>
+        )}
 
-          {/* File content */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            {sel ? (
-              <>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: `1px solid ${bc}`, flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 20 }}>{icon(sel.name)}</span>
-                    <span style={{ fontWeight: 600, fontSize: 14, color: tc }}>{sel.name}</span>
-                    <span style={{ fontSize: 11, color: sc, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", padding: "2px 8px", borderRadius: 8 }}>{sel.content.split("\n").length} рядків</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { onUseFile(sel); onClose(); }}
-                      style={{ padding: "6px 12px", borderRadius: 10, border: "1px solid rgba(102,126,234,0.4)", background: "rgba(102,126,234,0.15)", color: "#a78bfa", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                      📎 Використати у чаті
-                    </button>
-                    <button onClick={copyFile}
-                      style={{ padding: "6px 12px", borderRadius: 10, border: `1px solid ${bc}`, background: "transparent", color: tc, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                      {copied ? "✅ Скопійовано" : "📋 Копіювати"}
-                    </button>
-                    <button onClick={() => { onRemoveFile(sel.name); setSel(files.find(f => f.name !== sel.name) || null); }}
-                      style={{ padding: "6px 12px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                      🗑 Видалити
-                    </button>
-                  </div>
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          {/* File list */}
+          {(!isMobile || view === "list") && (
+            <div style={{ width: isMobile ? "100%" : 220, borderRight: isMobile ? "none" : `1px solid ${bc}`, overflowY: "auto", padding: "8px", flexShrink: 0, background: dark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.02)" }}>
+              {files.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "60px 12px", color: sc }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
+                  <div style={{ fontSize: 14 }}>Файлів немає</div>
                 </div>
-                <pre style={{ flex: 1, overflowY: "auto", overflowX: "auto", margin: 0, padding: "16px 20px", fontSize: 13, lineHeight: 1.8, color: dark ? "#e2e8f0" : "#1e293b", background: dark ? "#07060f" : "#f8fafc", fontFamily: "monospace", whiteSpace: "pre", wordBreak: "normal" }}>
-                  {sel.content}
-                </pre>
-              </>
-            ) : (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: sc }}>
-                <span style={{ fontSize: 52 }}>📂</span>
-                <span style={{ fontSize: 14 }}>Обери файл зі списку</span>
-              </div>
-            )}
-          </div>
+              ) : files.map((f, i) => (
+                <div key={i} onClick={() => handleSelectFile(f)}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px", borderRadius: 12, cursor: "pointer", marginBottom: 4, background: sel?.name === f.name && !isMobile ? "rgba(102,126,234,0.18)" : "transparent", border: `1px solid ${sel?.name === f.name && !isMobile ? "rgba(102,126,234,0.35)" : "transparent"}`, transition: "all 0.15s" }}>
+                  <span style={{ fontSize: 24, flexShrink: 0 }}>{icon(f.name)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: tc, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+                    <div style={{ fontSize: 11, color: sc, marginTop: 2 }}>{(f.content.length / 1024).toFixed(1)} KB · {f.content.split("\n").length} рядків</div>
+                  </div>
+                  {isMobile && <span style={{ color: sc, fontSize: 18 }}>›</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* File content — desktop always, mobile only in content view */}
+          {(!isMobile || view === "content") && !isMobile && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {sel ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: `1px solid ${bc}`, flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 20 }}>{icon(sel.name)}</span>
+                      <span style={{ fontWeight: 600, fontSize: 14, color: tc }}>{sel.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => { onUseFile(sel); onClose(); }}
+                        style={{ padding: "6px 12px", borderRadius: 10, border: "1px solid rgba(102,126,234,0.4)", background: "rgba(102,126,234,0.15)", color: "#a78bfa", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+                        📎 Використати у чаті
+                      </button>
+                      <button onClick={copyFile}
+                        style={{ padding: "6px 12px", borderRadius: 10, border: `1px solid ${bc}`, background: "transparent", color: tc, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+                        {copied ? "✅ Скопійовано" : "📋 Копіювати"}
+                      </button>
+                      <button onClick={() => { onRemoveFile(sel.name); setSel(files.find(f => f.name !== sel.name) || null); }}
+                        style={{ padding: "6px 12px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+                        🗑 Видалити
+                      </button>
+                    </div>
+                  </div>
+                  <pre style={{ flex: 1, overflowY: "auto", overflowX: "auto", margin: 0, padding: "16px 20px", fontSize: 13, lineHeight: 1.8, color: dark ? "#e2e8f0" : "#1e293b", background: dark ? "#07060f" : "#f8fafc", fontFamily: "monospace", whiteSpace: "pre", wordBreak: "normal" }}>
+                    {sel.content}
+                  </pre>
+                </>
+              ) : (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: sc }}>
+                  <span style={{ fontSize: 52 }}>📂</span>
+                  <span style={{ fontSize: 14 }}>Обери файл зі списку</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mobile content view */}
+          {isMobile && view === "content" && sel && (
+            <pre style={{ flex: 1, overflowY: "auto", overflowX: "auto", margin: 0, padding: "16px", fontSize: 12, lineHeight: 1.8, color: dark ? "#e2e8f0" : "#1e293b", background: dark ? "#07060f" : "#f8fafc", fontFamily: "monospace", whiteSpace: "pre", wordBreak: "normal", width: "100%" }}>
+              {sel.content}
+            </pre>
+          )}
         </div>
       </div>
     </div>
@@ -182,13 +231,13 @@ const ImageMessage = ({ prompt }) => {
   }, [prompt]);
   return (
     <div style={{ marginTop: 8 }}>
-      {loading && <div style={{ width: 260, height: 260, borderRadius: 14, background: "rgba(102,126,234,0.1)", border: "1px solid rgba(102,126,234,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+      {loading && <div style={{ width: 220, height: 220, borderRadius: 14, background: "rgba(102,126,234,0.1)", border: "1px solid rgba(102,126,234,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 28, animation: "pulse 1s infinite" }}>🎨</div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Генерую зображення...</div>
       </div>}
       {error && <div style={{ fontSize: 13, color: "#f87171" }}>❌ Не вдалось згенерувати. Спробуй ще раз.</div>}
       {src && <>
-        <img src={src} alt={prompt} style={{ maxWidth: 300, borderRadius: 14, border: "1px solid rgba(102,126,234,0.3)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)", display: "block" }} />
+        <img src={src} alt={prompt} style={{ maxWidth: "100%", width: 260, borderRadius: 14, border: "1px solid rgba(102,126,234,0.3)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)", display: "block" }} />
         <a href={src} download="ukrai-image.jpg" style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#a78bfa", textDecoration: "none" }}>⬇️ Зберегти</a>
       </>}
     </div>
@@ -196,7 +245,6 @@ const ImageMessage = ({ prompt }) => {
 };
 
 // ── FORMAT HELPERS ─────────────────────────────────────────────
-// Renders inline **bold** and `code` within a line
 const renderInline = (text, dark) => {
   if (!text || typeof text !== "string") return text;
   const result = [];
@@ -226,6 +274,7 @@ const renderInline = (text, dark) => {
   }
   return result;
 };
+
 const formatMessage = (text, dark, onPreview) => {
   const imgMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
   if (imgMatch) {
@@ -256,16 +305,16 @@ const formatTextOnly = (text, dark, onPreview) => {
               {isHtml && onPreview && (
                 <button onClick={() => onPreview(code)}
                   style={{ background: "rgba(102,126,234,0.35)", border: "1px solid rgba(102,126,234,0.5)", borderRadius: 7, cursor: "pointer", fontSize: 11, color: "#ddd6fe", padding: "3px 10px", fontFamily: "inherit", fontWeight: 600 }}>
-                  🌐 Відкрити Preview
+                  🌐 Preview
                 </button>
               )}
               <button onClick={() => navigator.clipboard.writeText(code)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: 4 }}>
-                📋 Копіювати код
+                📋 Копіювати
               </button>
             </div>
           </div>
-          <pre style={{ background: dark ? "#08080f" : "#0f0f1a", padding: "12px 16px", margin: 0, overflowX: "auto", fontSize: 13, lineHeight: 1.6, color: "#e2e8f0", fontFamily: "monospace" }}>{code}</pre>
+          <pre style={{ background: dark ? "#08080f" : "#0f0f1a", padding: "12px 16px", margin: 0, overflowX: "auto", fontSize: 13, lineHeight: 1.6, color: "#e2e8f0", fontFamily: "monospace", WebkitOverflowScrolling: "touch" }}>{code}</pre>
         </div>
       );
     }
@@ -283,11 +332,7 @@ const formatTextOnly = (text, dark, onPreview) => {
 // ── LOGIN SCREEN ───────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [loginError, setLoginError] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-  useEffect(() => {
-    const h = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener("resize", h); return () => window.removeEventListener("resize", h);
-  }, []);
+  const isMobile = useIsMobile();
 
   const features = [
     { icon: "⚡", title: "Блискавично", desc: "Відповіді за секунди завдяки Groq" },
@@ -303,13 +348,12 @@ function LoginScreen({ onLogin }) {
       {/* Ambient orbs */}
       <div style={{ position: "fixed", top: "-20%", left: "-10%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)", animation: "orbFloat 10s infinite ease-in-out", pointerEvents: "none" }} />
       <div style={{ position: "fixed", bottom: "-20%", right: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 65%)", animation: "orbFloat2 12s infinite ease-in-out", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", top: "40%", right: "35%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 65%)", pointerEvents: "none" }} />
 
       {/* Left — branding */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? "40px 24px" : "60px 72px", zIndex: 1, borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.04)", overflowY: "auto" }}>
         <div style={{ animation: "fadeInUp 0.8s ease both", maxWidth: 520 }}>
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 56 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: isMobile ? 32 : 56 }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, animation: "logoPulse 3s infinite ease-in-out", flexShrink: 0 }}>🤖</div>
             <div>
               <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</div>
@@ -318,35 +362,46 @@ function LoginScreen({ onLogin }) {
           </div>
 
           {/* Headline */}
-          <h1 style={{ fontSize: isMobile ? 32 : 48, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-1.5px", lineHeight: 1.15, marginBottom: 20 }}>
+          <h1 style={{ fontSize: isMobile ? 30 : 48, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-1.5px", lineHeight: 1.15, marginBottom: 16 }}>
             Твій особистий<br />
             <span style={{ background: "linear-gradient(135deg, #818cf8, #c4b5fd, #67e8f9)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundSize: "200% auto", animation: "shimmer 4s linear infinite" }}>AI-асистент</span>{" "}
-            <span style={{ fontSize: isMobile ? 28 : 42 }}>🇺🇦</span>
+            <span style={{ fontSize: isMobile ? 26 : 42 }}>🇺🇦</span>
           </h1>
-          <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(148,163,184,0.7)", marginBottom: 48, lineHeight: 1.75, fontWeight: 400 }}>
+          <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(148,163,184,0.7)", marginBottom: isMobile ? 28 : 48, lineHeight: 1.75, fontWeight: 400 }}>
             Відповідає на будь-які питання, аналізує файли, розпізнає голос — і все це українською.
           </p>
 
           {/* Features grid */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
             {features.map((f, i) => (
-              <div key={i} style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", animation: `fadeInUp 0.6s ease ${0.15 + i * 0.06}s both`, transition: "all 0.2s" }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.25)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}>
+              <div key={i} style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", animation: `fadeInUp 0.6s ease ${0.15 + i * 0.06}s both` }}>
                 <div style={{ fontSize: 20, marginBottom: 6 }}>{f.icon}</div>
                 <div style={{ fontWeight: 600, fontSize: 13, color: "#e2e8f0", marginBottom: 3 }}>{f.title}</div>
                 <div style={{ fontSize: 11, color: "rgba(148,163,184,0.5)", lineHeight: 1.5 }}>{f.desc}</div>
               </div>
             ))}
           </div>
+
+          {/* Mobile login inline */}
+          {isMobile && (
+            <div style={{ marginTop: 28, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 24, padding: "28px 22px" }}>
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Почати роботу</h3>
+                <p style={{ fontSize: 13, color: "rgba(148,163,184,0.5)" }}>Увійди через Google</p>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+                <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
+              </div>
+              {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12, color: "#fca5a5", fontSize: 13, textAlign: "center" }}>⚠️ {loginError}</div>}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right — login */}
+      {/* Right — login (desktop only) */}
       {!isMobile && (
         <div style={{ width: 440, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 44px", zIndex: 1, overflowY: "auto" }}>
           <div style={{ width: "100%", animation: "fadeInUp 0.9s ease 0.1s both" }}>
-            {/* Card */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 28, padding: "40px 36px", backdropFilter: "blur(30px)", animation: "borderGlow 4s infinite ease-in-out" }}>
               <div style={{ textAlign: "center", marginBottom: 32 }}>
                 <div style={{ fontSize: 44, marginBottom: 16 }}>✨</div>
@@ -370,39 +425,10 @@ function LoginScreen({ onLogin }) {
           </div>
         </div>
       )}
-
-      {/* Mobile login */}
-      {isMobile && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", overflowY: "auto", zIndex: 2, padding: "40px 20px 32px" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 14px", animation: "logoPulse 3s infinite" }}>🤖</div>
-            <div style={{ fontSize: 32, fontWeight: 700, background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</div>
-            <div style={{ fontSize: 13, color: "rgba(148,163,184,0.5)", marginTop: 4 }}>Асистент нового покоління</div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 24, padding: "28px 22px", marginBottom: 20 }}>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Почати роботу</h3>
-              <p style={{ fontSize: 13, color: "rgba(148,163,184,0.5)" }}>Увійди через Google</p>
-            </div>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-              <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
-            </div>
-            {loginError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12, color: "#fca5a5", fontSize: 13, textAlign: "center" }}>⚠️ {loginError}</div>}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {features.map((f, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "12px 14px" }}>
-                <div style={{ fontSize: 18, marginBottom: 5 }}>{f.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 12, color: "#e2e8f0", marginBottom: 2 }}>{f.title}</div>
-                <div style={{ fontSize: 10, color: "rgba(148,163,184,0.45)", lineHeight: 1.4 }}>{f.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
 // ── CHAT APP ───────────────────────────────────────────────────
 function ChatApp({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
@@ -412,25 +438,20 @@ function ChatApp({ user, onLogout }) {
   const [darkMode, setDarkMode] = useState(true);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [activePreset, setActivePreset] = useState(PRESETS[0]);
-  const [showPresets, setShowPresets] = useState(false);
   const [pinnedFacts, setPinnedFacts] = useState([]);
   const [showPinned, setShowPinned] = useState(false);
   const [showExport, setShowExport] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  // 📁 Файли — зберігаємо всі, не тільки один
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [activeFile, setActiveFile] = useState(null);
   const [showFileManager, setShowFileManager] = useState(false);
-  // 🌐 HTML Preview
   const [previewHtml, setPreviewHtml] = useState(null);
-  // Решта
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  // Mobile panels
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(null); // null | "menu" | "history" | "presets"
+  const isMobile = useIsMobile();
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
   const [chatHistory, setChatHistory] = useState(loadChatHistory);
   const [currentChatId, setCurrentChatId] = useState(null);
-  // 📊 Аналітика
   const [showStats, setShowStats] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(false);
@@ -444,11 +465,20 @@ function ChatApp({ user, onLogout }) {
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  useEffect(() => {
-    const h = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener("resize", h); return () => window.removeEventListener("resize", h);
-  }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  // Close mobile panel on resize to desktop
+  useEffect(() => { if (!isMobile) setMobilePanelOpen(null); }, [isMobile]);
+
+  // Prevent body scroll when mobile panel open
+  useEffect(() => {
+    if (isMobile && mobilePanelOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isMobile, mobilePanelOpen]);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -462,13 +492,10 @@ function ChatApp({ user, onLogout }) {
 
   const dark = darkMode;
   const bg = dark ? "#0a0a0f" : "#f8fafc";
-  const sidebarBg = dark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.025)";
   const borderColor = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const textColor = dark ? "#f1f5f9" : "#0f172a";
   const subColor = dark ? "rgba(148,163,184,0.6)" : "rgba(71,85,105,0.7)";
   const panelBg = dark ? "rgba(13,13,20,0.99)" : "rgba(255,255,255,0.99)";
-  const accentColor = "#6366f1";
-  const accentGrad = "linear-gradient(135deg, #6366f1, #8b5cf6)";
 
   const getSystemPrompt = () => {
     let sys = BASE_SYSTEM;
@@ -489,10 +516,9 @@ function ChatApp({ user, onLogout }) {
 
   const copyMessage = (text, idx) => { navigator.clipboard.writeText(text); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
   const pinFact = (text) => { setPinnedFacts(prev => [...prev, text.slice(0, 200)]); };
-  const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); closeAll(); };
-  const loadChat = (chat) => { setMessages(chat.messages); setApiMessages(chat.apiMessages || []); setActivePreset(chat.preset || PRESETS[0]); setCurrentChatId(chat.id); setShowHistory(false); };
+  const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); setMobilePanelOpen(null); };
+  const loadChat = (chat) => { setMessages(chat.messages); setApiMessages(chat.apiMessages || []); setActivePreset(chat.preset || PRESETS[0]); setCurrentChatId(chat.id); setMobilePanelOpen(null); };
   const deleteChat = (id, e) => { e.stopPropagation(); const u = chatHistory.filter(c => c.id !== id); setChatHistory(u); saveChatHistory(u); if (currentChatId === id) startNewChat(); };
-  const closeAll = () => { setShowPresets(false); setShowPinned(false); setShowExport(false); setShowMobileMenu(false); setShowHistory(false); setShowStats(false); };
 
   const exportChat = (format) => {
     if (messages.length === 0) return;
@@ -505,7 +531,6 @@ function ChatApp({ user, onLogout }) {
     setShowExport(false);
   };
 
-  // 📁 Завантаження — додаємо до списку, не замінюємо
   const handleFileUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -516,11 +541,12 @@ function ChatApp({ user, onLogout }) {
     };
     reader.readAsText(file); e.target.value = "";
   };
+
   const removeFile = (name) => { setUploadedFiles(prev => prev.filter(f => f.name !== name)); if (activeFile?.name === name) setActiveFile(null); };
 
   const sendMessage = async () => {
     const text = input.trim(); if (!text || loading) return;
-    setInput(""); if (textareaRef.current) textareaRef.current.style.height = "auto";
+    setInput(""); if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
     let apiText = text;
     if (activeFile) {
       const ext = activeFile.name.split(".").pop().toLowerCase();
@@ -544,7 +570,6 @@ function ChatApp({ user, onLogout }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || "API помилка");
       const reply = data.content?.map(b => b.text).join("") || "Порожня відповідь.";
-      // Аналітика
       const newIn = totalTokensIn + (data.usage?.inputTokens || 0);
       const newOut = totalTokensOut + (data.usage?.outputTokens || 0);
       const newReqs = totalRequests + 1;
@@ -556,48 +581,49 @@ function ChatApp({ user, onLogout }) {
       const errMsg = { role: "assistant", content: "⚠️ Помилка: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
     } finally {
-      setLoading(false);
-      setStreamingText("");
+      setLoading(false); setStreamingText("");
     }
   };
 
   const suggestions = ["💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "📝 Склади резюме для розробника", "🔍 Поясни як працює React"];
 
-  const SideBtn = ({ onClick, title, emoji, danger, active }) => (
-    <button onClick={onClick} title={title}
-      style={{ width: 44, height: 44, borderRadius: 13, background: active ? "rgba(99,102,241,0.2)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"), border: `1px solid ${active ? "rgba(99,102,241,0.45)" : borderColor}`, cursor: "pointer", fontSize: 19, display: "flex", alignItems: "center", justifyContent: "center", color: active ? "#a5b4fc" : subColor, transition: "all 0.2s", position: "relative" }}
-      onMouseEnter={e => { e.currentTarget.style.background = danger ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.15)"; e.currentTarget.style.color = danger ? "#ef4444" : "#a5b4fc"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = active ? "rgba(99,102,241,0.2)" : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"); e.currentTarget.style.color = active ? "#a5b4fc" : subColor; }}>
-      {emoji}
-    </button>
+  // ── Mobile bottom sheet ────────────────────────────────────────
+  const MobileBottomSheet = ({ title, children }) => (
+    <>
+      {/* Backdrop */}
+      <div onClick={() => setMobilePanelOpen(null)}
+        style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} />
+      {/* Sheet */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: panelBg, borderRadius: "22px 22px 0 0", border: `1px solid ${borderColor}`, borderBottom: "none", maxHeight: "80vh", display: "flex", flexDirection: "column", animation: "slideUp 0.25s ease" }}>
+        {/* Handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.15)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 20px 14px" }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: textColor }}>{title}</span>
+          <button onClick={() => setMobilePanelOpen(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: subColor }}>✕</button>
+        </div>
+        <div style={{ overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>
+          {children}
+        </div>
+        {/* Safe area bottom padding */}
+        <div style={{ height: "env(safe-area-inset-bottom, 16px)" }} />
+      </div>
+    </>
   );
 
   const mobileMenuItems = [
     { emoji: "💬", label: "Новий чат", action: startNewChat },
-    { emoji: "📂", label: "Історія чатів", action: () => { setShowHistory(!showHistory); setShowMobileMenu(false); } },
-    { emoji: "📁", label: `Файли (${uploadedFiles.length})`, action: () => { setShowFileManager(true); setShowMobileMenu(false); } },
-    { emoji: "🎭", label: "Ролі/Пресети", action: () => { setShowPresets(!showPresets); setShowMobileMenu(false); } },
-    { emoji: "📌", label: "Закріплені факти", action: () => { setShowPinned(!showPinned); setShowMobileMenu(false); } },
-    { emoji: "📎", label: "Завантажити файл", action: () => { fileInputRef.current?.click(); setShowMobileMenu(false); } },
-    { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); setShowMobileMenu(false); } },
-    { emoji: "📊", label: "Аналітика", action: () => { setShowStats(!showStats); setShowMobileMenu(false); } },
-    { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setShowMobileMenu(false); } },
-    { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) startNewChat(); setShowMobileMenu(false); }, danger: true },
+    { emoji: "📂", label: "Історія чатів", action: () => setMobilePanelOpen("history") },
+    { emoji: "📁", label: `Файли (${uploadedFiles.length})`, action: () => { setShowFileManager(true); setMobilePanelOpen(null); } },
+    { emoji: "🎭", label: "Ролі/Пресети", action: () => setMobilePanelOpen("presets") },
+    { emoji: "📌", label: "Закріплені факти", action: () => setMobilePanelOpen("pinned") },
+    { emoji: "📎", label: "Завантажити файл", action: () => { fileInputRef.current?.click(); setMobilePanelOpen(null); } },
+    { emoji: "💾", label: "Експорт чату", action: () => setMobilePanelOpen("export") },
+    { emoji: "📊", label: "Аналітика", action: () => setMobilePanelOpen("stats") },
+    { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => { setDarkMode(!dark); setMobilePanelOpen(null); } },
+    { emoji: "🗑", label: "Очистити чат", action: () => { if (window.confirm("Очистити чат?")) startNewChat(); }, danger: true },
   ];
-
-  const FilesBtn = ({ mobile }) => (
-    <button onClick={() => setShowFileManager(true)}
-      style={{ display: "flex", alignItems: "center", gap: mobile ? 0 : 7, padding: mobile ? "0" : "7px 14px", width: mobile ? 36 : "auto", height: mobile ? 36 : "auto", borderRadius: 12, border: `1px solid ${uploadedFiles.length > 0 ? "rgba(99,102,241,0.4)" : borderColor}`, background: uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent", color: uploadedFiles.length > 0 ? "#a5b4fc" : subColor, cursor: "pointer", fontSize: mobile ? 16 : 13, fontFamily: "inherit", justifyContent: "center", position: "relative", transition: "all 0.2s" }}
-      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; e.currentTarget.style.color = "#a5b4fc"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent"; e.currentTarget.style.color = uploadedFiles.length > 0 ? "#a5b4fc" : subColor; }}>
-      📁{!mobile && " Файли"}
-      {uploadedFiles.length > 0 && (
-        <span style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", borderRadius: 20, padding: mobile ? "1px 0" : "1px 7px", fontSize: 10, fontWeight: 700, minWidth: mobile ? 17 : "auto", height: mobile ? 17 : "auto", display: "flex", alignItems: "center", justifyContent: "center", position: mobile ? "absolute" : "static", top: mobile ? -5 : "auto", right: mobile ? -5 : "auto" }}>
-          {uploadedFiles.length}
-        </span>
-      )}
-    </button>
-  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: bg, display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif", overflow: "hidden", transition: "background 0.3s" }}>
@@ -606,51 +632,161 @@ function ChatApp({ user, onLogout }) {
       {previewHtml && <HtmlPreviewModal html={previewHtml} onClose={() => setPreviewHtml(null)} />}
       {showFileManager && <FileManagerModal files={uploadedFiles} dark={dark} onClose={() => setShowFileManager(false)} onUseFile={(f) => setActiveFile(f)} onRemoveFile={removeFile} />}
 
+      {/* ── MOBILE BOTTOM SHEETS ── */}
+      {isMobile && mobilePanelOpen === "menu" && (
+        <MobileBottomSheet title="Меню">
+          <div style={{ padding: "0 12px 12px" }}>
+            {mobileMenuItems.map((item, i) => (
+              <button key={i} onClick={item.action}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 12px", borderRadius: 14, border: "none", background: "transparent", cursor: "pointer", color: item.danger ? "#ef4444" : textColor, fontSize: 15, textAlign: "left", fontFamily: "inherit", marginBottom: 2 }}
+                onTouchStart={e => e.currentTarget.style.background = item.danger ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.1)"}
+                onTouchEnd={e => e.currentTarget.style.background = "transparent"}>
+                <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{item.emoji}</span>{item.label}
+              </button>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {isMobile && mobilePanelOpen === "history" && (
+        <MobileBottomSheet title="Історія чатів">
+          <div style={{ padding: "0 12px 12px" }}>
+            <button onClick={startNewChat}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 14px", borderRadius: 14, border: `1px solid rgba(99,102,241,0.3)`, background: "rgba(99,102,241,0.08)", cursor: "pointer", color: "#a5b4fc", fontSize: 15, fontFamily: "inherit", marginBottom: 12 }}>
+              <span style={{ fontSize: 20 }}>✏️</span> Новий чат
+            </button>
+            {chatHistory.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: subColor }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>💬</div>
+                <div>Немає чатів</div>
+              </div>
+            ) : chatHistory.map(chat => (
+              <div key={chat.id} onClick={() => loadChat(chat)}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14, cursor: "pointer", marginBottom: 4, background: currentChatId === chat.id ? "rgba(99,102,241,0.15)" : "transparent", border: `1px solid ${currentChatId === chat.id ? "rgba(99,102,241,0.3)" : borderColor}` }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>💬</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, color: textColor, fontWeight: currentChatId === chat.id ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</div>
+                  <div style={{ fontSize: 11, color: subColor, marginTop: 2 }}>{chat.date}</div>
+                </div>
+                <button onClick={(e) => deleteChat(chat.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 18, padding: "4px", flexShrink: 0 }}>🗑</button>
+              </div>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {isMobile && mobilePanelOpen === "presets" && (
+        <MobileBottomSheet title="Роль асистента">
+          <div style={{ padding: "0 12px 12px" }}>
+            {PRESETS.map(p => (
+              <button key={p.id} onClick={() => { setActivePreset(p); setMobilePanelOpen(null); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 14px", borderRadius: 14, border: activePreset.id === p.id ? "1px solid rgba(99,102,241,0.45)" : `1px solid ${borderColor}`, background: activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", marginBottom: 6, textAlign: "left", fontFamily: "inherit" }}>
+                <span style={{ fontSize: 24 }}>{p.icon}</span>
+                <span style={{ fontSize: 15, color: textColor, fontWeight: activePreset.id === p.id ? 600 : 400, flex: 1 }}>{p.name}</span>
+                {activePreset.id === p.id && <span style={{ color: "#6366f1", fontSize: 18 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {isMobile && mobilePanelOpen === "pinned" && (
+        <MobileBottomSheet title={`Закріплені факти (${pinnedFacts.length})`}>
+          <div style={{ padding: "0 16px 12px" }}>
+            {pinnedFacts.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: subColor }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>📌</div>
+                <div>Немає закріплених фактів</div>
+              </div>
+            ) : pinnedFacts.map((f, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "12px 0", borderBottom: `1px solid ${borderColor}` }}>
+                <div style={{ flex: 1, fontSize: 14, color: textColor, lineHeight: 1.5 }}>{f}</div>
+                <button onClick={() => setPinnedFacts(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 20, flexShrink: 0 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {isMobile && mobilePanelOpen === "export" && (
+        <MobileBottomSheet title="Експорт чату">
+          <div style={{ padding: "0 16px 12px" }}>
+            {[["txt","📄 Текст (.txt)"], ["md","📝 Markdown (.md)"], ["json","⚙️ JSON (.json)"]].map(([fmt, label]) => (
+              <button key={fmt} onClick={() => { exportChat(fmt); setMobilePanelOpen(null); }}
+                style={{ width: "100%", padding: "16px 14px", borderRadius: 14, border: `1px solid ${borderColor}`, background: "transparent", color: textColor, cursor: "pointer", fontSize: 15, textAlign: "left", marginBottom: 8, fontFamily: "inherit" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
+      {isMobile && mobilePanelOpen === "stats" && (
+        <MobileBottomSheet title="Аналітика">
+          <div style={{ padding: "0 16px 12px" }}>
+            {[
+              ["📨", "Запитів", totalRequests],
+              ["📥", "Токенів вхід", totalTokensIn.toLocaleString("uk-UA")],
+              ["📤", "Токенів вихід", totalTokensOut.toLocaleString("uk-UA")],
+              ["💬", "Повідомлень", messages.length],
+            ].map(([icon, label, val], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: 15, color: subColor }}>{icon} {label}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: textColor }}>{val}</span>
+              </div>
+            ))}
+          </div>
+        </MobileBottomSheet>
+      )}
+
       {/* MOBILE HEADER */}
       {isMobile && (
-        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.8)", backdropFilter: "blur(10px)", flexShrink: 0, zIndex: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
+        <div style={{ padding: "10px 14px", paddingTop: "max(10px, env(safe-area-inset-top))", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(10,10,15,0.97)" : "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", flexShrink: 0, zIndex: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{activePreset.icon}</div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: textColor }}>УкрАI</div>
-              <div style={{ fontSize: 10, color: subColor, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</div>
+              <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block" }} />{activePreset.name}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <FilesBtn mobile />
-            <button onClick={() => { setShowMobileMenu(!showMobileMenu); setShowHistory(false); setShowPresets(false); }}
-              style={{ width: 36, height: 36, borderRadius: 10, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>☰</button>
-            <div style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(99,102,241,0.45)" }} onClick={onLogout}>
+            {/* Files badge */}
+            <button onClick={() => setShowFileManager(true)}
+              style={{ position: "relative", width: 38, height: 38, borderRadius: 11, background: uploadedFiles.length > 0 ? "rgba(99,102,241,0.15)" : dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${uploadedFiles.length > 0 ? "rgba(99,102,241,0.4)" : borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: uploadedFiles.length > 0 ? "#a5b4fc" : textColor }}>
+              📁
+              {uploadedFiles.length > 0 && (
+                <span style={{ position: "absolute", top: -4, right: -4, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
+                  {uploadedFiles.length}
+                </span>
+              )}
+            </button>
+            {/* History shortcut */}
+            <button onClick={() => setMobilePanelOpen("history")}
+              style={{ width: 38, height: 38, borderRadius: 11, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>
+              📂
+            </button>
+            {/* Hamburger */}
+            <button onClick={() => setMobilePanelOpen("menu")}
+              style={{ width: 38, height: 38, borderRadius: 11, background: dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", border: `1px solid ${borderColor}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: textColor }}>
+              ☰
+            </button>
+            {/* Avatar */}
+            <div style={{ width: 38, height: 38, borderRadius: 11, overflow: "hidden", cursor: "pointer", border: "2px solid rgba(99,102,241,0.45)", flexShrink: 0 }} onClick={onLogout}>
               {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👤</div>}
             </div>
           </div>
         </div>
       )}
 
-      {/* MOBILE MENU */}
-      {isMobile && showMobileMenu && (
-        <div style={{ position: "absolute", top: 60, right: 10, width: 230, background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 18, padding: 12, zIndex: 200, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
-          {mobileMenuItems.map((item, i) => (
-            <button key={i} onClick={item.action}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", cursor: "pointer", color: item.danger ? "#ef4444" : textColor, fontSize: 14, textAlign: "left", fontFamily: "inherit" }}
-              onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <span style={{ fontSize: 18 }}>{item.emoji}</span>{item.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
-        {/* ── LEFT SIDEBAR (ChatGPT style) ── */}
+        {/* ── LEFT SIDEBAR (desktop) ── */}
         {!isMobile && (
           <div style={{ width: showLeftSidebar ? 260 : 0, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)", borderRight: showLeftSidebar ? `1px solid ${borderColor}` : "none", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", transition: "width 0.25s ease" }}>
             {showLeftSidebar && (
               <>
-                {/* Sidebar Header */}
                 <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
@@ -663,8 +799,6 @@ function ChatApp({ user, onLogout }) {
                     ✏️
                   </button>
                 </div>
-
-                {/* Chat History List */}
                 <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px" }}>
                   {chatHistory.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 16px", color: subColor }}>
@@ -693,8 +827,6 @@ function ChatApp({ user, onLogout }) {
                     </>
                   )}
                 </div>
-
-                {/* Sidebar Footer */}
                 <div style={{ padding: "12px 14px", borderTop: `1px solid ${borderColor}`, flexShrink: 0, display: "flex", alignItems: "center", gap: 10, background: dark ? "rgba(99,102,241,0.05)" : "rgba(99,102,241,0.03)" }}>
                   <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "1.5px solid rgba(99,102,241,0.35)", cursor: "pointer" }} onClick={onLogout} title="Вийти">
                     {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>👤</div>}
@@ -717,7 +849,6 @@ function ChatApp({ user, onLogout }) {
           {/* Desktop Header */}
           {!isMobile && (
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)", flexShrink: 0, gap: 12 }}>
-              {/* Left: sidebar toggle + title */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button onClick={() => setShowLeftSidebar(p => !p)} title="Сайдбар"
                   style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${borderColor}`, background: showLeftSidebar ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showLeftSidebar ? "#a5b4fc" : subColor, transition: "all 0.2s" }}>
@@ -736,9 +867,13 @@ function ChatApp({ user, onLogout }) {
                   </div>
                 </div>
               </div>
-              {/* Right: tools toggle + files + greeting */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <FilesBtn />
+                <button onClick={() => setShowFileManager(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 12, border: `1px solid ${uploadedFiles.length > 0 ? "rgba(99,102,241,0.4)" : borderColor}`, background: uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent", color: uploadedFiles.length > 0 ? "#a5b4fc" : subColor, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; e.currentTarget.style.color = "#a5b4fc"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = uploadedFiles.length > 0 ? "rgba(99,102,241,0.12)" : "transparent"; e.currentTarget.style.color = uploadedFiles.length > 0 ? "#a5b4fc" : subColor; }}>
+                  📁 Файли {uploadedFiles.length > 0 && <span style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{uploadedFiles.length}</span>}
+                </button>
                 <span style={{ fontSize: 13, color: subColor }}>Привіт, {user?.name?.split(" ")[0] || "Друже"}! 👋</span>
                 <button onClick={() => setShowRightPanel(p => !p)} title="Інструменти"
                   style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${showRightPanel ? "rgba(99,102,241,0.45)" : borderColor}`, background: showRightPanel ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: showRightPanel ? "#a5b4fc" : subColor, transition: "all 0.2s" }}>
@@ -749,24 +884,22 @@ function ChatApp({ user, onLogout }) {
           )}
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px" : "20px 24px", display: "flex", flexDirection: "column", gap: isMobile ? 12 : 18 }} onClick={closeAll}>
+          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px 12px" : "20px 24px", display: "flex", flexDirection: "column", gap: isMobile ? 12 : 18, WebkitOverflowScrolling: "touch" }}>
             {messages.length === 0 && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: isMobile ? 16 : 24, padding: isMobile ? "20px 8px" : "40px 20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: isMobile ? 16 : 24, padding: isMobile ? "20px 4px" : "40px 20px" }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: isMobile ? 44 : 60, marginBottom: 12, animation: "logoPulse 3s infinite" }}>{activePreset.icon}</div>
+                  <div style={{ fontSize: isMobile ? 48 : 60, marginBottom: 12, animation: "logoPulse 3s infinite" }}>{activePreset.icon}</div>
                   <h2 style={{ fontSize: isMobile ? 20 : 28, fontWeight: 700, color: textColor, marginBottom: 8, letterSpacing: "-0.5px" }}>
                     {activePreset.id === "default" ? "Чим можу допомогти?" : `Режим: ${activePreset.name}`}
                   </h2>
-                  <p style={{ fontSize: isMobile ? 13 : 14, color: subColor, maxWidth: 400, lineHeight: 1.7, margin: "0 auto" }}>
-                    {activePreset.id === "default" ? "Запитай про що завгодно, попроси намалювати або говори голосом!" : activePreset.prompt.slice(0, 120) + "..."}
+                  <p style={{ fontSize: isMobile ? 13 : 14, color: subColor, maxWidth: 340, lineHeight: 1.7, margin: "0 auto" }}>
+                    {activePreset.id === "default" ? "Запитай про що завгодно або говори голосом!" : activePreset.prompt.slice(0, 100) + "..."}
                   </p>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 8, maxWidth: 660, width: "100%" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: isMobile ? "100%" : 660, width: "100%" }}>
                   {suggestions.map((s, i) => (
                     <button key={i} onClick={() => { setInput(s.slice(2)); textareaRef.current?.focus(); }}
-                      style={{ background: dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)", border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`, borderRadius: 12, padding: isMobile ? "10px" : "14px", color: dark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)", cursor: "pointer", fontSize: isMobile ? 12 : 13, textAlign: "left", fontFamily: "inherit", lineHeight: 1.4 }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.12)"; e.currentTarget.style.color = dark ? "#fff" : "#1a1a2e"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)"; e.currentTarget.style.color = dark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)"; }}>
+                      style={{ background: dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)", border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`, borderRadius: 12, padding: isMobile ? "10px 12px" : "14px", color: dark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)", cursor: "pointer", fontSize: isMobile ? 12 : 13, textAlign: "left", fontFamily: "inherit", lineHeight: 1.4 }}>
                       {s}
                     </button>
                   ))}
@@ -777,25 +910,25 @@ function ChatApp({ user, onLogout }) {
             {messages.map((m, i) => (
               <div key={i} style={{ display: "flex", gap: isMobile ? 6 : 10, justifyContent: m.role === "user" ? "flex-end" : "flex-start", animation: "fadeInUp 0.3s ease both" }}>
                 {m.role === "assistant" && (
-                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, marginTop: 2, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
+                  <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17, flexShrink: 0, marginTop: 2, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 )}
-                <div style={{ maxWidth: isMobile ? "85%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
-                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal" }}>
+                <div style={{ maxWidth: isMobile ? "88%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
                     {m.role === "assistant" ? formatMessage(m.content, dark, setPreviewHtml) : m.content}
                   </div>
                   {m.role === "assistant" && (
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => copyMessage(m.content, i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.color = "#a5b4fc"} onMouseLeave={e => e.currentTarget.style.color = subColor}>
-                        {copiedIdx === i ? "✅ Скопійовано" : "📋 Копіювати"}
+                      <button onClick={() => copyMessage(m.content, i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }}>
+                        {copiedIdx === i ? "✅" : "📋"}
                       </button>
-                      <button onClick={() => pinFact(m.content)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }} onMouseEnter={e => e.currentTarget.style.color = "#fbbf24"} onMouseLeave={e => e.currentTarget.style.color = subColor}>
-                        📌 Закріпити
+                      <button onClick={() => pinFact(m.content)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: subColor, padding: "2px 6px", borderRadius: 6, fontFamily: "inherit" }}>
+                        📌
                       </button>
                     </div>
                   )}
                 </div>
                 {m.role === "user" && (
-                  <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, overflow: "hidden", flexShrink: 0, marginTop: 2, border: "1.5px solid rgba(99,102,241,0.35)" }}>
+                  <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, overflow: "hidden", flexShrink: 0, marginTop: 2, border: "1.5px solid rgba(99,102,241,0.35)" }}>
                     {user?.picture ? <img src={user.picture} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "#0f0f1a", display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>}
                   </div>
                 )}
@@ -804,8 +937,8 @@ function ChatApp({ user, onLogout }) {
 
             {loading && (
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
-                <div style={{ width: isMobile ? 28 : 36, height: isMobile ? 28 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 13 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
-                <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "85%" : "74%" }}>
+                <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
+                <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "88%" : "74%" }}>
                   {streamingText ? (
                     <div style={{ fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, color: textColor }}>
                       {formatTextOnly(streamingText, dark, setPreviewHtml)}
@@ -822,30 +955,35 @@ function ChatApp({ user, onLogout }) {
           {activeFile && (
             <div style={{ padding: "8px 14px", background: dark ? "rgba(34,197,94,0.1)" : "rgba(34,197,94,0.08)", borderTop: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
               <span style={{ fontSize: 16 }}>📎</span>
-              <span style={{ fontSize: 13, color: "#22c55e", flex: 1 }}>{activeFile.name} — готовий до аналізу</span>
-              <button onClick={() => setShowFileManager(true)} style={{ background: "none", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, cursor: "pointer", color: "#22c55e", fontSize: 12, padding: "2px 10px", fontFamily: "inherit" }}>📁 Всі файли</button>
-              <button onClick={() => setActiveFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 16 }}>✕</button>
+              <span style={{ fontSize: 13, color: "#22c55e", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeFile.name}</span>
+              <button onClick={() => setActiveFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 18, flexShrink: 0, padding: "0 4px" }}>✕</button>
             </div>
           )}
 
-          {/* Input */}
-          <div style={{ padding: isMobile ? "8px 10px 12px" : "12px 20px 14px", borderTop: `1px solid ${borderColor}`, background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
+          {/* Input area — mobile safe area aware */}
+          <div style={{ padding: isMobile ? "8px 10px" : "12px 20px 14px", paddingBottom: isMobile ? "max(12px, env(safe-area-inset-bottom))" : "14px", borderTop: `1px solid ${borderColor}`, background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
               onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(99,102,241,0.45)"}
-              onBlurCapture={e => { e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"; e.currentTarget.style.boxShadow = "none"; }}>
+              onBlurCapture={e => { e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"; }}>
               <textarea ref={textareaRef} value={input}
-                onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+                onChange={e => {
+                  setInput(e.target.value);
+                  // Auto-resize
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, isMobile ? 100 : 120) + "px";
+                }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !isMobile) { e.preventDefault(); sendMessage(); } }}
                 placeholder={isListening ? "🎤 Слухаю..." : (activePreset.id === "default" ? "Запитай або попроси намалювати..." : `Режим: ${activePreset.name}...`)}
-                rows={1} style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: isListening ? "#a5b4fc" : textColor, fontSize: isMobile ? 16 : 15, fontFamily: "inherit", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
+                rows={1}
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: isListening ? "#a5b4fc" : textColor, fontSize: 16, fontFamily: "inherit", lineHeight: 1.6, resize: "none", overflow: "hidden", paddingTop: 4 }} />
               {voiceSupported && (
                 <button onClick={toggleVoice}
-                  style={{ width: isMobile ? 36 : 38, height: isMobile ? 36 : 38, borderRadius: 10, border: "none", background: isListening ? "rgba(239,68,68,0.2)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, animation: isListening ? "pulse 1s infinite" : "none" }}>
+                  style={{ width: isMobile ? 38 : 38, height: isMobile ? 38 : 38, borderRadius: 10, border: "none", background: isListening ? "rgba(239,68,68,0.2)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, animation: isListening ? "pulse 1s infinite" : "none" }}>
                   {isListening ? "🔴" : "🎤"}
                 </button>
               )}
               <button onClick={sendMessage} disabled={loading || !input.trim()}
-                style={{ width: isMobile ? 40 : 42, height: isMobile ? 40 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
+                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? "linear-gradient(135deg, #4f46e5, #7c3aed)" : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
@@ -853,19 +991,17 @@ function ChatApp({ user, onLogout }) {
           </div>
         </div>
 
-        {/* ── RIGHT PANEL (Tools) ── */}
+        {/* ── RIGHT PANEL (desktop tools) ── */}
         {!isMobile && (
           <div style={{ width: showRightPanel ? 260 : 0, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)", borderLeft: showRightPanel ? `1px solid ${borderColor}` : "none", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", transition: "width 0.25s ease" }}>
             {showRightPanel && (
               <div style={{ padding: "14px 14px", overflowY: "auto", flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 12, letterSpacing: "0.05em" }}>ІНСТРУМЕНТИ</div>
-
-                {/* Presets */}
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>🎭 Роль</div>
                   {PRESETS.map(p => (
                     <button key={p.id} onClick={() => setActivePreset(p)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, border: activePreset.id === p.id ? "1px solid rgba(99,102,241,0.45)" : `1px solid transparent`, background: activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, border: activePreset.id === p.id ? "1px solid rgba(99,102,241,0.45)" : "1px solid transparent", background: activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent", cursor: "pointer", marginBottom: 3, textAlign: "left", fontFamily: "inherit" }}
                       onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.08)"}
                       onMouseLeave={e => e.currentTarget.style.background = activePreset.id === p.id ? "rgba(99,102,241,0.12)" : "transparent"}>
                       <span style={{ fontSize: 18 }}>{p.icon}</span>
@@ -874,16 +1010,13 @@ function ChatApp({ user, onLogout }) {
                     </button>
                   ))}
                 </div>
-
                 <div style={{ height: 1, background: borderColor, margin: "12px 0" }} />
-
-                {/* Actions */}
                 <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>⚡ Дії</div>
                 {[
                   { emoji: "📎", label: "Завантажити файл", action: () => fileInputRef.current?.click() },
-                  { emoji: "📌", label: `Закріплені (${pinnedFacts.length})`, action: () => { setShowPinned(!showPinned); closeAll(); setShowRightPanel(true); } },
-                  { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); closeAll(); setShowRightPanel(true); } },
-                  { emoji: "📊", label: "Аналітика", action: () => { setShowStats(!showStats); closeAll(); setShowRightPanel(true); } },
+                  { emoji: "📌", label: `Закріплені (${pinnedFacts.length})`, action: () => { setShowPinned(!showPinned); } },
+                  { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); } },
+                  { emoji: "📊", label: "Аналітика", action: () => { setShowStats(!showStats); } },
                   { emoji: dark ? "☀️" : "🌙", label: dark ? "Світла тема" : "Темна тема", action: () => setDarkMode(!dark) },
                 ].map((item, i) => (
                   <button key={i} onClick={item.action}
@@ -893,8 +1026,6 @@ function ChatApp({ user, onLogout }) {
                     <span style={{ fontSize: 17 }}>{item.emoji}</span>{item.label}
                   </button>
                 ))}
-
-                {/* Pinned facts inline */}
                 {showPinned && pinnedFacts.length > 0 && (
                   <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>📌 ЗАКРІПЛЕНІ</div>
@@ -906,8 +1037,6 @@ function ChatApp({ user, onLogout }) {
                     ))}
                   </div>
                 )}
-
-                {/* Export inline */}
                 {showExport && (
                   <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>💾 ЕКСПОРТ</div>
@@ -921,8 +1050,6 @@ function ChatApp({ user, onLogout }) {
                     ))}
                   </div>
                 )}
-
-                {/* Stats inline */}
                 {showStats && (
                   <div style={{ marginTop: 12, padding: 12, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${borderColor}` }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginBottom: 8 }}>📊 АНАЛІТИКА</div>
@@ -939,7 +1066,6 @@ function ChatApp({ user, onLogout }) {
                     ))}
                   </div>
                 )}
-
                 <div style={{ height: 1, background: borderColor, margin: "12px 0" }} />
                 <button onClick={() => { if (window.confirm("Очистити чат?")) startNewChat(); }}
                   style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)", color: "#f87171", cursor: "pointer", fontSize: 13, textAlign: "left", fontFamily: "inherit" }}>
@@ -949,7 +1075,6 @@ function ChatApp({ user, onLogout }) {
             )}
           </div>
         )}
-
       </div>
     </div>
   );
@@ -960,31 +1085,27 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cal+Sans&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; width: 100%; overflow: hidden; background: #0a0a0f; }
-        .sidebar-new-btn:hover { background: rgba(99,102,241,0.12) !important; }
+        /* iOS momentum scrolling */
+        * { -webkit-tap-highlight-color: transparent; }
         @keyframes typingBounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-7px);opacity:1} }
         @keyframes fadeInUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
         @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
-        @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1) rotate(0deg)} 50%{transform:translateY(-40px) scale(1.08) rotate(3deg)} }
+        @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-40px) scale(1.08)} }
         @keyframes orbFloat2 { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(30px) scale(0.95)} }
-        @keyframes logoPulse { 0%,100%{box-shadow:0 0 30px rgba(99,102,241,0.4), 0 0 60px rgba(139,92,246,0.2)} 50%{box-shadow:0 0 50px rgba(99,102,241,0.7), 0 0 100px rgba(139,92,246,0.4)} }
+        @keyframes logoPulse { 0%,100%{box-shadow:0 0 30px rgba(99,102,241,0.4),0 0 60px rgba(139,92,246,0.2)} 50%{box-shadow:0 0 50px rgba(99,102,241,0.7),0 0 100px rgba(139,92,246,0.4)} }
         @keyframes borderGlow { 0%,100%{border-color:rgba(99,102,241,0.3)} 50%{border-color:rgba(139,92,246,0.6)} }
-        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
         textarea { resize: none; }
         textarea::placeholder { color: rgba(148,163,184,0.4); }
-        @media (max-width: 640px) { input, textarea, select { font-size: 16px !important; } }
-        .msg-bubble { transition: all 0.15s ease; }
-        .msg-bubble:hover { transform: translateY(-1px); }
-        .chat-item:hover .delete-btn { opacity: 1 !important; }
+        /* Prevent zoom on input focus iOS */
+        input, textarea, select { font-size: 16px !important; }
       `}</style>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         {user
