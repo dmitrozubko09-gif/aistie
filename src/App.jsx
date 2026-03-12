@@ -53,7 +53,10 @@ const BASE_SYSTEM = `Ти — NeuroUA, передовий україномовн
 - На "да"/"ні"/"ок" — відповідай по контексту, не вітайся знову
 - Для коду — тільки робочий код з коментарями, без помилок
 - Якщо наданий файл — аналізуй ТІЛЬКИ його
-- Якщо просять зображення — відповідай: [IMAGE: детальний опис англійською]
+- Якщо просять намалювати, згенерувати, створити зображення/фото/картинку/арт — відповідай ТІЛЬКИ так: [IMAGE: detailed english description of the image]
+- Опис для [IMAGE:...] пиши АНГЛІЙСЬКОЮ, детально (стиль, колір, освітлення, деталі)
+- Приклад: користувач "намалюй кота" → ти "[IMAGE: cute fluffy orange cat sitting on a window sill, soft lighting, photorealistic]"
+- НЕ додавай нічого крім [IMAGE:...] якщо просять зображення
 - Ніколи не вигадуй факти — краще скажи що не знаєш`;
 
 const STORAGE_KEY = "ukrai_chat_history";
@@ -253,28 +256,96 @@ function FileManagerModal({ files, dark, onClose, onUseFile, onRemoveFile }) {
   );
 }
 
-// ── IMAGE MESSAGE ──────────────────────────────────────────────
+// ── IMAGE MESSAGE (Stable Diffusion via Hugging Face) ──────────
 const ImageMessage = ({ prompt }) => {
-  const [src, setSrc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    fetch("/api/image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) })
-      .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
-      .then(blob => { setSrc(URL.createObjectURL(blob)); setLoading(false); })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [prompt]);
+  const [status, setStatus] = useState("loading"); // loading | done | error | model_loading
+  const [imgSrc, setImgSrc] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+
+  const generate = async () => {
+    setStatus("loading");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (res.status === 503) {
+        // Model is loading on HF servers — retry after 20s
+        setStatus("model_loading");
+        setTimeout(() => { setRetryCount(c => c + 1); }, 22000);
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      setImgSrc(URL.createObjectURL(blob));
+      setStatus("done");
+    } catch (err) {
+      setErrorMsg(err.message);
+      setStatus("error");
+    }
+  };
+
+  useEffect(() => { generate(); }, [retryCount]);
+
   return (
-    <div style={{ marginTop: 8 }}>
-      {loading && <div style={{ width: 220, height: 220, borderRadius: 14, background: "rgba(102,126,234,0.1)", border: "1px solid rgba(102,126,234,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 28, animation: "pulse 1s infinite" }}>🎨</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Генерую зображення...</div>
-      </div>}
-      {error && <div style={{ fontSize: 13, color: "#f87171" }}>❌ Не вдалось згенерувати. Спробуй ще раз.</div>}
-      {src && <>
-        <img src={src} alt={prompt} style={{ maxWidth: "100%", width: 260, borderRadius: 14, border: "1px solid rgba(102,126,234,0.3)", boxShadow: "0 8px 30px rgba(0,0,0,0.4)", display: "block" }} />
-        <a href={src} download="ukrai-image.jpg" style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#a78bfa", textDecoration: "none" }}>⬇️ Зберегти</a>
-      </>}
+    <div style={{ marginTop: 10 }}>
+      {status === "loading" && (
+        <div style={{ width: 300, borderRadius: 16, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 32, animation: "pulse 1.2s infinite" }}>🎨</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Генерую зображення...</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>Stable Diffusion XL</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", maxWidth: 220, fontStyle: "italic" }}>"{prompt.slice(0, 70)}{prompt.length > 70 ? "..." : ""}"</div>
+          <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+            {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#a78bfa", animation: "typingBounce 1.4s infinite", animationDelay: `${i*0.2}s` }} />)}
+          </div>
+        </div>
+      )}
+      {status === "model_loading" && (
+        <div style={{ width: 300, borderRadius: 16, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", padding: "22px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 28 }}>⏳</div>
+          <div style={{ fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>Модель завантажується...</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>Hugging Face запускає модель. Це займає ~20 секунд. Спроба автоматично...</div>
+          <div style={{ width: "100%", height: 4, background: "rgba(251,191,36,0.15)", borderRadius: 99, overflow: "hidden", marginTop: 4 }}>
+            <div style={{ height: "100%", background: "#fbbf24", borderRadius: 99, animation: "shimmer 2s linear infinite", backgroundSize: "200% auto", backgroundImage: "linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%)" }} />
+          </div>
+        </div>
+      )}
+      {status === "error" && (
+        <div style={{ borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", padding: "14px 16px" }}>
+          <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>❌ {errorMsg || "Не вдалось згенерувати"}</div>
+          <button onClick={() => setRetryCount(c => c + 1)}
+            style={{ fontSize: 12, color: "#a78bfa", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+            🔄 Спробувати ще раз
+          </button>
+        </div>
+      )}
+      {status === "done" && imgSrc && (
+        <div>
+          <img src={imgSrc} alt={prompt}
+            style={{ maxWidth: "100%", width: 360, borderRadius: 16, border: "1px solid rgba(99,102,241,0.3)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", display: "block", cursor: "zoom-in" }}
+            onClick={() => window.open(imgSrc, "_blank")}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <a href={imgSrc} download="neuroua-image.jpg"
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#a78bfa", textDecoration: "none", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px" }}>
+              ⬇️ Зберегти
+            </a>
+            <button onClick={() => { setImgSrc(null); setRetryCount(c => c + 1); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#94a3b8", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+              🔄 Ще раз
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -665,7 +736,7 @@ function ChatApp({ user, onLogout }) {
     }
   };
 
-  const suggestions = ["💻 Напиши сайт на HTML", "🧠 Поясни як працює нейромережа", "💱 Який курс долара зараз?", "🧘 Як подолати прокрастинацію?", "📝 Склади резюме для розробника", "🔍 Що таке квантові комп'ютери?"];
+  const suggestions = ["💻 Напиши сайт на HTML", "🧠 Поясни як працює нейромережа", "💱 Який курс долара зараз?", "🎨 Намалюй космічне місто", "📝 Склади резюме для розробника", "🔍 Що таке квантові комп'ютери?"];
 
   // ── Mobile bottom sheet ────────────────────────────────────────
   const MobileBottomSheet = ({ title, children }) => (
