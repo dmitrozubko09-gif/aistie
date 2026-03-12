@@ -60,22 +60,68 @@ const BASE_SYSTEM = `Ти — NeuroUA, передовий україномовн
 - Ніколи не вигадуй факти — краще скажи що не знаєш`;
 
 const STORAGE_KEY = "ukrai_chat_history";
+
+// One-time migration: clear corrupt data from old versions that saved array content
+(function migrateStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const chats = JSON.parse(raw);
+    const hasCorrupt = chats.some(chat =>
+      (chat.messages || []).some(m => Array.isArray(m.content) || (m.content && typeof m.content === "object" && !Array.isArray(m.content)))
+    );
+    if (hasCorrupt) {
+      localStorage.removeItem(STORAGE_KEY);
+      console.log("[УкрАI] Cleared corrupt chat history from localStorage");
+    }
+  } catch {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }
+})();
 function loadChatHistory() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const chats = JSON.parse(raw);
-    // Sanitize: convert any array content to string for display messages
+
+    const sanitizeContent = (content) => {
+      if (!content) return "";
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) {
+        return content
+          .filter(c => c && (c.type === "text" || c.type === "image"))
+          .map(c => {
+            if (c.type === "text") return c.value || c.text || "";
+            if (c.type === "image") return "🖼";
+            return "";
+          })
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "🖼 Зображення";
+      }
+      // If it's an object (shouldn't happen but safety net)
+      if (typeof content === "object") return "🖼 Зображення";
+      return String(content);
+    };
+
     return chats.map(chat => ({
       ...chat,
+      title: typeof chat.title === "string" ? chat.title : "Чат",
       messages: (chat.messages || []).map(m => ({
         ...m,
-        content: Array.isArray(m.content)
-          ? (m.content.filter(c => c.type === "text").map(c => c.value || c.text || "").join(" ").trim() || (m.role === "user" ? "🖼 Зображення" : ""))
-          : m.content,
+        content: sanitizeContent(m.content),
+      })),
+      // Strip apiMessages with image data (too large, not needed for history display)
+      apiMessages: (chat.apiMessages || []).map(m => ({
+        ...m,
+        content: typeof m.content === "string" ? m.content : sanitizeContent(m.content),
       })),
     }));
-  } catch { return []; }
+  } catch {
+    // If anything goes wrong, wipe corrupt data
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    return [];
+  }
 }
 function saveChatHistory(chats) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats)); } catch {}
