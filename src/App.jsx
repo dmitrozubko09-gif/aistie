@@ -404,6 +404,34 @@ const formatTextOnly = (text, dark, onPreview) => {
   });
 };
 
+// ── USER MESSAGE RENDERER ──────────────────────────────────────
+const renderUserMessage = (content, isMobile) => {
+  if (!content) return null;
+  // Legacy string content
+  if (typeof content === "string") return content;
+  // New array content with images and text
+  if (Array.isArray(content)) {
+    const images = content.filter(c => c.type === "image");
+    const textParts = content.filter(c => c.type === "text");
+    const hasText = textParts.some(t => t.value && t.value.trim() && t.value !== "🖼 Зображення");
+    return (
+      <div>
+        {images.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: hasText ? 10 : 0 }}>
+            {images.map((img, idx) => (
+              <img key={idx} src={img.dataUrl} alt={img.name || "image"}
+                style={{ maxWidth: isMobile ? 200 : 260, maxHeight: 200, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)", cursor: "zoom-in", display: "block" }}
+                onClick={() => window.open(img.dataUrl, "_blank")} />
+            ))}
+          </div>
+        )}
+        {textParts.map((t, i) => t.value && t.value !== "🖼 Зображення" ? <span key={i}>{t.value}</span> : null)}
+      </div>
+    );
+  }
+  return null;
+};
+
 // ── LOGIN SCREEN ───────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const [loginError, setLoginError] = useState(null);
@@ -604,7 +632,10 @@ function ChatApp({ user, onLogout }) {
     if (messages.length === 0) return;
     const chatId = currentChatId || Date.now().toString();
     if (!currentChatId) setCurrentChatId(chatId);
-    const title = messages[0]?.content?.slice(0, 40) || "Новий чат";
+    const firstContent = messages[0]?.content;
+    const title = (Array.isArray(firstContent)
+      ? (firstContent.find(c => c.type === "text")?.value || "🖼 Зображення")
+      : firstContent?.slice(0, 40)) || "Новий чат";
     const updated = chatHistory.filter(c => c.id !== chatId);
     const newHistory = [{ id: chatId, title, date: new Date().toLocaleDateString("uk-UA"), messages, apiMessages, preset: activePreset }, ...updated].slice(0, 20);
     setChatHistory(newHistory); saveChatHistory(newHistory);
@@ -1174,33 +1205,7 @@ function ChatApp({ user, onLogout }) {
                   <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
                     {m.role === "assistant"
                       ? formatMessage(m.content, dark, setPreviewHtml)
-                      : (() => {
-                          // Support both legacy string content and new array content
-                          if (Array.isArray(m.content)) {
-                            const images = m.content.filter(c => c.type === "image");
-                            const textParts = m.content.filter(c => c.type === "text");
-                            return (
-                              <div>
-                                {images.length > 0 && (
-                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: textParts.some(t => t.value?.trim()) ? 10 : 0 }}>
-                                    {images.map((img, imgIdx) => (
-                                      <div key={imgIdx} style={{ position: "relative" }}>
-                                        <img
-                                          src={img.dataUrl}
-                                          alt={img.name}
-                                          style={{ maxWidth: isMobile ? 200 : 260, maxHeight: 200, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)", cursor: "zoom-in", display: "block" }}
-                                          onClick={() => window.open(img.dataUrl, "_blank")}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {textParts.map((t, ti) => t.value && t.value !== "🖼 Зображення" ? <span key={ti}>{t.value}</span> : null)}
-                              </div>
-                            );
-                          }
-                          return m.content;
-                        })()
+                      : renderUserMessage(m.content, isMobile)
                     }
                   </div>
                   {m.role === "assistant" && (
