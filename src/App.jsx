@@ -256,45 +256,21 @@ function FileManagerModal({ files, dark, onClose, onUseFile, onRemoveFile }) {
   );
 }
 
-// ── IMAGE MESSAGE (Stable Diffusion via Hugging Face) ──────────
+// ── IMAGE MESSAGE (Pollinations AI — без ключа) ────────────────
 const ImageMessage = ({ prompt }) => {
-  const [status, setStatus] = useState("loading"); // loading | done | error | model_loading
+  const [status, setStatus] = useState("loading");
   const [imgSrc, setImgSrc] = useState(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [retryCount, setRetryCount] = useState(0);
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 999999));
 
-  const generate = async () => {
+  useEffect(() => {
     setStatus("loading");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (res.status === 503) {
-        // Model is loading on HF servers — retry after 20s
-        setStatus("model_loading");
-        setTimeout(() => { setRetryCount(c => c + 1); }, 22000);
-        return;
-      }
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      setImgSrc(URL.createObjectURL(blob));
-      setStatus("done");
-    } catch (err) {
-      setErrorMsg(err.message);
-      setStatus("error");
-    }
-  };
-
-  useEffect(() => { generate(); }, [retryCount]);
+    const encoded = encodeURIComponent(prompt);
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+    const img = new window.Image();
+    img.onload = () => { setImgSrc(url); setStatus("done"); };
+    img.onerror = () => setStatus("error");
+    img.src = url;
+  }, [seed]);
 
   return (
     <div style={{ marginTop: 10 }}>
@@ -302,27 +278,16 @@ const ImageMessage = ({ prompt }) => {
         <div style={{ width: 300, borderRadius: 16, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: 32, animation: "pulse 1.2s infinite" }}>🎨</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Генерую зображення...</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>Stable Diffusion XL</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", maxWidth: 220, fontStyle: "italic" }}>"{prompt.slice(0, 70)}{prompt.length > 70 ? "..." : ""}"</div>
           <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
             {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#a78bfa", animation: "typingBounce 1.4s infinite", animationDelay: `${i*0.2}s` }} />)}
           </div>
         </div>
       )}
-      {status === "model_loading" && (
-        <div style={{ width: 300, borderRadius: 16, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", padding: "22px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 28 }}>⏳</div>
-          <div style={{ fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>Модель завантажується...</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>Hugging Face запускає модель. Це займає ~20 секунд. Спроба автоматично...</div>
-          <div style={{ width: "100%", height: 4, background: "rgba(251,191,36,0.15)", borderRadius: 99, overflow: "hidden", marginTop: 4 }}>
-            <div style={{ height: "100%", background: "#fbbf24", borderRadius: 99, animation: "shimmer 2s linear infinite", backgroundSize: "200% auto", backgroundImage: "linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%)" }} />
-          </div>
-        </div>
-      )}
       {status === "error" && (
         <div style={{ borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", padding: "14px 16px" }}>
-          <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>❌ {errorMsg || "Не вдалось згенерувати"}</div>
-          <button onClick={() => setRetryCount(c => c + 1)}
+          <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>❌ Не вдалось згенерувати</div>
+          <button onClick={() => setSeed(Math.floor(Math.random() * 999999))}
             style={{ fontSize: 12, color: "#a78bfa", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
             🔄 Спробувати ще раз
           </button>
@@ -335,11 +300,11 @@ const ImageMessage = ({ prompt }) => {
             onClick={() => window.open(imgSrc, "_blank")}
           />
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <a href={imgSrc} download="neuroua-image.jpg"
+            <a href={imgSrc} download="neuroua-image.jpg" target="_blank" rel="noreferrer"
               style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#a78bfa", textDecoration: "none", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px" }}>
               ⬇️ Зберегти
             </a>
-            <button onClick={() => { setImgSrc(null); setRetryCount(c => c + 1); }}
+            <button onClick={() => setSeed(Math.floor(Math.random() * 999999))}
               style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#94a3b8", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
               🔄 Ще раз
             </button>
