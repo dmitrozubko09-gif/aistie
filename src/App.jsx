@@ -547,6 +547,9 @@ function ChatApp({ user, onLogout }) {
   const [typingEffect, setTypingEffect] = useState("");
   const typingIntervalRef = useRef(null);
 
+  const [attachedImages, setAttachedImages] = useState([]); // [{name, base64, dataUrl, mimeType}]
+  const imageInputRef = useRef(null);
+
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -633,7 +636,7 @@ function ChatApp({ user, onLogout }) {
 
   const copyMessage = (text, idx) => { navigator.clipboard.writeText(text); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
   const pinFact = (text) => { setPinnedFacts(prev => [...prev, text.slice(0, 200)]); };
-  const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); setMobilePanelOpen(null); };
+  const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); setAttachedImages([]); setMobilePanelOpen(null); };
   const loadChat = (chat) => { setMessages(chat.messages); setApiMessages(chat.apiMessages || []); setActivePreset(chat.preset || PRESETS[0]); setCurrentChatId(chat.id); setMobilePanelOpen(null); };
   const deleteChat = (id, e) => { e.stopPropagation(); const u = chatHistory.filter(c => c.id !== id); setChatHistory(u); saveChatHistory(u); if (currentChatId === id) startNewChat(); };
 
@@ -659,11 +662,38 @@ function ChatApp({ user, onLogout }) {
     reader.readAsText(file); e.target.value = "";
   };
 
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    files.forEach(file => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        const base64 = dataUrl.split(",")[1];
+        setAttachedImages(prev => {
+          if (prev.length >= 4) return prev; // max 4 images
+          return [...prev, { name: file.name, base64, dataUrl, mimeType: file.type }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  const removeAttachedImage = (idx) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const removeFile = (name) => { setUploadedFiles(prev => prev.filter(f => f.name !== name)); if (activeFile?.name === name) setActiveFile(null); };
 
   const sendMessage = async () => {
-    const text = input.trim(); if (!text || loading) return;
+    const text = input.trim(); if ((!text && attachedImages.length === 0) || loading) return;
     setInput(""); if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
+
+    const currentImages = [...attachedImages];
+    setAttachedImages([]);
+
     let apiText = text;
     if (activeFile) {
       const ext = activeFile.name.split(".").pop().toLowerCase();
@@ -672,9 +702,29 @@ function ChatApp({ user, onLogout }) {
         ? `Я завантажив файл "${activeFile.name}" (${ext.toUpperCase()}). Ось його ПОВНИЙ вміст:\n\`\`\`${ext}\n${activeFile.content}\n\`\`\`\n\nМоє питання: ${text}\n\nАналізуй ТІЛЬКИ цей код. Знайди баги, поясни логіку, дай конкретні поради.`
         : `Я завантажив файл "${activeFile.name}". Його вміст:\n---\n${activeFile.content.slice(0, 8000)}\n---\n\nМоє питання: ${text}`;
     }
-    const displayText = activeFile ? `📎 ${activeFile.name}\n${text}` : text;
-    const newApiMsgs = [...apiMessages, { role: "user", content: apiText }];
-    const newDispMsgs = [...messages, { role: "user", content: displayText }];
+
+    // Build display message
+    const displayContent = [
+      ...(currentImages.length > 0 ? currentImages.map(img => ({ type: "image", dataUrl: img.dataUrl, name: img.name })) : []),
+      ...(activeFile ? [{ type: "text", value: `📎 ${activeFile.name}\n${text}` }] : [{ type: "text", value: text || "🖼 Зображення" }]),
+    ];
+
+    // Build API message content
+    let apiContent;
+    if (currentImages.length > 0) {
+      apiContent = [
+        ...currentImages.map(img => ({
+          type: "image_url",
+          image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+        })),
+        { type: "text", text: apiText || "Опиши що бачиш на цьому зображенні." },
+      ];
+    } else {
+      apiContent = apiText;
+    }
+
+    const newApiMsgs = [...apiMessages, { role: "user", content: apiContent }];
+    const newDispMsgs = [...messages, { role: "user", content: displayContent, hasImages: currentImages.length > 0 }];
     setMessages(newDispMsgs); setApiMessages(newApiMsgs);
     setActiveFile(null); setLoading(true);
     try {
@@ -738,6 +788,7 @@ function ChatApp({ user, onLogout }) {
     { emoji: "📁", label: `Файли (${uploadedFiles.length})`, action: () => { setShowFileManager(true); setMobilePanelOpen(null); } },
     { emoji: "🎭", label: "Ролі/Пресети", action: () => setMobilePanelOpen("presets") },
     { emoji: "📌", label: "Закріплені факти", action: () => setMobilePanelOpen("pinned") },
+    { emoji: "🖼", label: "Завантажити зображення", action: () => { imageInputRef.current?.click(); setMobilePanelOpen(null); } },
     { emoji: "📎", label: "Завантажити файл", action: () => { fileInputRef.current?.click(); setMobilePanelOpen(null); } },
     { emoji: "💾", label: "Експорт чату", action: () => setMobilePanelOpen("export") },
     { emoji: "📊", label: "Аналітика", action: () => setMobilePanelOpen("stats") },
@@ -1048,6 +1099,7 @@ function ChatApp({ user, onLogout }) {
         )}
 
         <input ref={fileInputRef} type="file" accept=".txt,.js,.jsx,.ts,.tsx,.py,.html,.css,.json,.md,.csv,.vue,.php,.java,.c,.cpp,.cs,.go,.rb,.rs,.swift" style={{ display: "none" }} onChange={handleFileUpload} />
+        <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleImageUpload} />
 
         {/* MAIN */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
@@ -1120,7 +1172,36 @@ function ChatApp({ user, onLogout }) {
                 )}
                 <div style={{ maxWidth: isMobile ? "88%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
                   <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
-                    {m.role === "assistant" ? formatMessage(m.content, dark, setPreviewHtml) : m.content}
+                    {m.role === "assistant"
+                      ? formatMessage(m.content, dark, setPreviewHtml)
+                      : (() => {
+                          // Support both legacy string content and new array content
+                          if (Array.isArray(m.content)) {
+                            const images = m.content.filter(c => c.type === "image");
+                            const textParts = m.content.filter(c => c.type === "text");
+                            return (
+                              <div>
+                                {images.length > 0 && (
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: textParts.some(t => t.value?.trim()) ? 10 : 0 }}>
+                                    {images.map((img, imgIdx) => (
+                                      <div key={imgIdx} style={{ position: "relative" }}>
+                                        <img
+                                          src={img.dataUrl}
+                                          alt={img.name}
+                                          style={{ maxWidth: isMobile ? 200 : 260, maxHeight: 200, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)", cursor: "zoom-in", display: "block" }}
+                                          onClick={() => window.open(img.dataUrl, "_blank")}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {textParts.map((t, ti) => t.value && t.value !== "🖼 Зображення" ? <span key={ti}>{t.value}</span> : null)}
+                              </div>
+                            );
+                          }
+                          return m.content;
+                        })()
+                    }
                   </div>
                   {m.role === "assistant" && (
                     <div style={{ display: "flex", gap: 6 }}>
@@ -1166,6 +1247,26 @@ function ChatApp({ user, onLogout }) {
             </div>
           )}
 
+          {/* Attached images preview */}
+          {attachedImages.length > 0 && (
+            <div style={{ padding: "8px 14px", background: dark ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.05)", borderTop: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <span style={{ fontSize: 13, color: "#a5b4fc", flexShrink: 0 }}>🖼</span>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                {attachedImages.map((img, idx) => (
+                  <div key={idx} style={{ position: "relative", flexShrink: 0 }}>
+                    <img src={img.dataUrl} alt={img.name}
+                      style={{ width: 52, height: 52, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(99,102,241,0.4)", display: "block" }} />
+                    <button onClick={() => removeAttachedImage(idx)}
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", border: "none", cursor: "pointer", fontSize: 11, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 }}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <span style={{ fontSize: 12, color: "#a5b4fc", flexShrink: 0 }}>AI проаналізує {attachedImages.length > 1 ? `${attachedImages.length} зображення` : "зображення"}</span>
+            </div>
+          )}
+
           {/* Input area — mobile safe area aware */}
           <div style={{ padding: isMobile ? "8px 10px" : "12px 20px 14px", paddingBottom: isMobile ? "max(12px, env(safe-area-inset-bottom))" : "14px", borderTop: `1px solid ${borderColor}`, background: dark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
@@ -1182,6 +1283,7 @@ function ChatApp({ user, onLogout }) {
                     <div onClick={() => setShowPlusMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 98 }} />
                     <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, zIndex: 99, background: dark ? "#16162a" : "#fff", border: `1px solid ${borderColor}`, borderRadius: 14, padding: 6, minWidth: 230, boxShadow: "0 -8px 30px rgba(0,0,0,0.4)", animation: "fadeInUp 0.15s ease" }}>
                       {[
+                        { icon: "🖼", label: "Завантажити зображення", sub: "PNG, JPG, WebP для аналізу AI", action: () => { imageInputRef.current?.click(); setShowPlusMenu(false); } },
                         { icon: "📎", label: "Завантажити файл", sub: "Код, текст, CSV, JSON...", action: () => { fileInputRef.current?.click(); setShowPlusMenu(false); } },
                         { icon: "📋", label: "Вставити з буфера", sub: "Текст або код", action: () => { navigator.clipboard.readText().then(t => { setInput(p => p + t); setShowPlusMenu(false); }).catch(() => setShowPlusMenu(false)); } },
                         { icon: "🎤", label: voiceSupported ? "Голосовий ввід" : "Голос (не підтримується)", sub: "Говори — бот розуміє українську", action: () => { if (voiceSupported) { toggleVoice(); setShowPlusMenu(false); } } },
@@ -1248,8 +1350,8 @@ function ChatApp({ user, onLogout }) {
                   {isListening ? "🔴" : "🎤"}
                 </button>
               )}
-              <button onClick={sendMessage} disabled={loading || !input.trim()}
-                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && input.trim() ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && input.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && input.trim() ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
+              <button onClick={sendMessage} disabled={loading || (!input.trim() && attachedImages.length === 0)}
+                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && (input.trim() || attachedImages.length > 0) ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && (input.trim() || attachedImages.length > 0) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && (input.trim() || attachedImages.length > 0) ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
@@ -1316,6 +1418,7 @@ function ChatApp({ user, onLogout }) {
                 <div style={{ height: 1, background: borderColor, margin: "12px 0" }} />
                 <div style={{ fontSize: 12, color: subColor, marginBottom: 8, fontWeight: 600 }}>⚡ Дії</div>
                 {[
+                  { emoji: "🖼", label: "Завантажити зображення", action: () => imageInputRef.current?.click() },
                   { emoji: "📎", label: "Завантажити файл", action: () => fileInputRef.current?.click() },
                   { emoji: "📌", label: `Закріплені (${pinnedFacts.length})`, action: () => { setShowPinned(!showPinned); } },
                   { emoji: "💾", label: "Експорт чату", action: () => { setShowExport(!showExport); } },
