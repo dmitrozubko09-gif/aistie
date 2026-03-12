@@ -259,59 +259,65 @@ function FileManagerModal({ files, dark, onClose, onUseFile, onRemoveFile }) {
 // ── IMAGE MESSAGE (Pollinations Flux — напряму з браузера) ─────
 const ImageMessage = ({ prompt }) => {
   const [status, setStatus] = useState("loading");
-  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 999999));
+  const [imgSrc, setImgSrc] = useState(null);
+  const [attempt, setAttempt] = useState(0);
 
-  // Будуємо URL напряму — без жодного сервера!
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    setImgSrc(null);
+    const seed = Math.floor(Math.random() * 999999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=512&nologo=true&seed=${seed}&model=flux`;
+    fetch(url)
+      .then(r => { if (!r.ok) throw new Error("bad"); return r.blob(); })
+      .then(blob => { if (!cancelled) { setImgSrc(URL.createObjectURL(blob)); setStatus("done"); } })
+      .catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
+  }, [prompt, attempt]);
+
+  const retry = () => setAttempt(a => a + 1);
 
   return (
     <div style={{ marginTop: 10 }}>
       {status === "loading" && (
         <div style={{ width: 300, borderRadius: 16, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 32, animation: "pulse 1.2s infinite" }}>🎨</div>
+          <div style={{ fontSize: 32 }}>🎨</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Генерую зображення...</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", maxWidth: 220, fontStyle: "italic" }}>"{prompt.slice(0, 60)}{prompt.length > 60 ? "..." : ""}"</div>
           <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
             {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#a78bfa", animation: "typingBounce 1.4s infinite", animationDelay: `${i*0.2}s` }} />)}
           </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>це може зайняти 10-30 секунд</div>
         </div>
       )}
       {status === "error" && (
         <div style={{ borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", padding: "14px 16px" }}>
-          <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>❌ Не вдалось згенерувати</div>
-          <button onClick={() => { setSeed(Math.floor(Math.random()*999999)); }}
-            style={{ fontSize: 12, color: "#a78bfa", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
-            🔄 Спробувати ще раз
+          <div style={{ fontSize: 13, color: "#f87171", marginBottom: 8 }}>Не вдалось згенерувати</div>
+          <button onClick={retry} style={{ fontSize: 12, color: "#a78bfa", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+            Спробувати ще раз
           </button>
         </div>
       )}
-      {status !== "error" && (
-        <div style={{ display: status === "loading" ? "none" : "block" }}>
-          <img
-            src={url}
-            alt={prompt}
-            onLoad={() => setStatus("done")}
-            onError={() => setStatus("error")}
+      {status === "done" && imgSrc && (
+        <div>
+          <img src={imgSrc} alt={prompt}
             style={{ maxWidth: "100%", width: 360, borderRadius: 16, border: "1px solid rgba(99,102,241,0.3)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", display: "block", cursor: "zoom-in" }}
-            onClick={() => window.open(url, "_blank")}
-          />
-          {status === "done" && (
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <a href={url} download="neuroua-image.jpg" target="_blank" rel="noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#a78bfa", textDecoration: "none", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px" }}>
-                ⬇️ Зберегти
-              </a>
-              <button onClick={() => { setStatus("loading"); setSeed(Math.floor(Math.random()*999999)); }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#94a3b8", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
-                🔄 Ще раз
-              </button>
-            </div>
-          )}
+            onClick={() => window.open(imgSrc, "_blank")} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <a href={imgSrc} download="neuroua-image.jpg" target="_blank" rel="noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#a78bfa", textDecoration: "none", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, padding: "5px 12px" }}>
+              ⬇️ Зберегти
+            </a>
+            <button onClick={retry} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#94a3b8", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+              🔄 Ще раз
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
 
 // ── FORMAT HELPERS ─────────────────────────────────────────────
 const renderInline = (text, dark) => {
