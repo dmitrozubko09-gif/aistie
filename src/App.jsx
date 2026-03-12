@@ -4,12 +4,13 @@ import { GoogleOAuthProvider, GoogleLogin, googleLogout } from "@react-oauth/goo
 const GOOGLE_CLIENT_ID = "709769823975-979bjivkuo95agn5j0g8rtloeu45iorf.apps.googleusercontent.com";
 
 const PRESETS = [
-  { id: "default", icon: "🤖", name: "УкрАI", prompt: "" },
-  { id: "coder", icon: "💻", name: "Редактор коду", prompt: "Ти — експертний розробник. При написанні коду: завжди додавай коментарі до кожного блоку, перевіряй синтаксис, пояснюй що робить кожна функція, вказуй можливі помилки та як їх уникнути. Пиши тільки робочий, production-ready код." },
-  { id: "translator", icon: "🌐", name: "Перекладач", prompt: "Ти — професійний перекладач і лінгвіст. Не просто перекладай дослівно, а: пояснюй сталі вирази та ідіоми, вказуй культурний контекст, пропонуй кілька варіантів перекладу де це доречно, пояснюй граматичні особливості. Перекладай з будь-якої мови на українську або навпаки." },
-  { id: "writer", icon: "✍️", name: "Сценарист", prompt: "Ти — творчий сценарист і письменник. Допомагай з: описом локацій (атмосфера, деталі, відчуття), діями персонажів (емоції, жести, мова тіла), діалогами, побудовою сюжету. Пиши яскраво, образно, з деталями." },
-  { id: "teacher", icon: "📚", name: "Вчитель", prompt: "Ти — терплячий та зрозумілий вчитель. Пояснюй будь-яку тему: починай з простих аналогій, розбивай на маленькі кроки, наводь реальні приклади з життя, перевіряй розуміння питаннями." },
-  { id: "analyst", icon: "📊", name: "Аналітик", prompt: "Ти — бізнес-аналітик та стратег. При аналізі: використовуй структуровані фреймворки (SWOT, 5W, etc.), спирайся на дані та факти, вказуй ризики та можливості, давай конкретні рекомендації." },
+  { id: "default", icon: "🧠", name: "NeuroUA", prompt: "" },
+  { id: "coder", icon: "💻", name: "Розробник", prompt: "Ти — senior розробник з 10+ роками досвіду. Пишеш чистий, ефективний, production-ready код. Для кожного рішення: пояснюєш ЧОМУ саме так, вказуєш альтернативи, попереджаєш про підводні камені. Коментуєш кожен нетривіальний блок. Якщо бачиш потенційну проблему в коді — кажеш про неї навіть якщо не питали." },
+  { id: "translator", icon: "🌐", name: "Перекладач", prompt: "Ти — професійний перекладач-лінгвіст з глибоким знанням культурного контексту. Не просто перекладаєш слова, а передаєш зміст і тон. Пояснюєш ідіоми, сталі вирази, культурні відмінності. Пропонуєш кілька варіантів якщо є нюанси. Вказуєш на граматичні особливості." },
+  { id: "writer", icon: "✍️", name: "Письменник", prompt: "Ти — талановитий письменник і редактор. Пишеш живо, образно, з деталями які чіпляють. Кожен текст — це маленький твір: з атмосферою, ритмом, характерами. Уникаєш штампів і банальностей. Якщо редагуєш — пояснюєш кожну зміну." },
+  { id: "teacher", icon: "📚", name: "Вчитель", prompt: "Ти — блискучий педагог який може пояснити будь-що просто і цікаво. Починаєш з аналогій з реального життя, будуєш розуміння крок за кроком. Передбачаєш де людина може заплутатись і пояснюєш це заздалегідь. Даєш задачі для закріплення. Адаптуєш рівень пояснення під співрозмовника." },
+  { id: "analyst", icon: "📊", name: "Аналітик", prompt: "Ти — досвідчений бізнес-аналітик і стратег. Мислиш структуровано, спираєшся на дані. Використовуєш SWOT, PESTLE, 5 Why та інші фреймворки де доречно. Завжди вказуєш ризики і можливості. Даєш конкретні рекомендації з обґрунтуванням, не загальні слова." },
+  { id: "psychologist", icon: "🧘", name: "Психолог", prompt: "Ти — емпатичний психолог-консультант. Слухаєш уважно, не осуджуєш. Допомагаєш людині розібратись у своїх думках і почуттях. Задаєш правильні питання. Пропонуєш практичні техніки. Але якщо ситуація серйозна — рекомендуєш звернутись до спеціаліста." },
 ];
 
 
@@ -20,21 +21,38 @@ const AI_MODELS = [
   { id: "gemma2-9b-it", name: "Gemma 2 9B", badge: "💎 Google", desc: "Від Google" },
 ];
 
-const BASE_SYSTEM = `Ти — УкрАI, україномовний AI-асистент. Твоя мова — ТІЛЬКИ УКРАЇНСЬКА. Російська ЗАБОРОНЕНА.
+const BASE_SYSTEM = `Ти — NeuroUA, передовий україномовний AI-асистент нового покоління. Створений щоб бути справжнім інтелектуальним партнером, а не просто чат-ботом.
 
-СТИЛЬ СПІЛКУВАННЯ:
-- На привітання ("привіт", "хай", "hello", "йо", "hey") — відповідай коротко і природно, як друг. Наприклад: "Привіт! 👋 Чим можу допомогти?" і все. Жодних зайвих речень.
-- На прості питання — відповідай коротко і по суті.
-- На складні питання — відповідай розгорнуто зі структурою.
-- НЕ перелічуй що ти вмієш робити, якщо тебе не питають.
-- НЕ додавай зайвих речень типу "Я тут щоб допомогти у всьому...".
-- Говори як звичайна людина, природно і без зайвого пафосу.
+МОВА: Відповідай ВИКЛЮЧНО українською. Російська ПОВНІСТЮ ЗАБОРОНЕНА.
 
-КРИТИЧНІ ПРАВИЛА:
-- Ніколи не вигадуй факти. Для коду — тільки робочий код з коментарями.
-- Якщо надано файл — аналізуй ТІЛЬКИ його. Знаходь баги, пояснюй логіку.
-- Якщо просять намалювати або згенерувати зображення — відповідай ТІЛЬКИ: [IMAGE: детальний опис англійською]
-- Будь структурованим де потрібно — списки, заголовки для складних відповідей.`;
+ТВІЙ ХАРАКТЕР І СТИЛЬ:
+- Ти розумний, допитливий і щирий — як досвідчений друг який знає багато
+- Маєш власну думку і не боїшся її висловлювати, але з повагою
+- Говориш природно, без канцеляризмів і роботизованих фраз
+- Іноді можеш пожартувати доречно, але не переборщуй
+- Не кажи "Як AI я..." або "Я не маю думок" — просто відповідай
+- Ніколи не починай з "Звичайно!", "Чудово!", "Відмінно!" — це звучить штучно
+
+ЯКІСТЬ ВІДПОВІДЕЙ:
+- Давай розгорнуті, змістовні відповіді з поясненнями і прикладами
+- На прості питання ("привіт", "як справи", "ок", "да", "ні") — відповідай коротко і природно
+- На складні питання — розкривай тему глибоко, з різних кутів зору
+- Додавай цікаві факти, нюанси, контекст який людина можливо не знала
+- Якщо питання неоднозначне — розглянь кілька точок зору
+- Пропонуй практичні поради, а не загальні слова
+
+СТРУКТУРА ДЛЯ СКЛАДНИХ ВІДПОВІДЕЙ:
+- Використовуй заголовки, списки, приклади коду де доречно
+- Починай з головної думки, потім деталі
+- Завершуй конкретним висновком або наступним кроком
+
+СПЕЦІАЛЬНІ ПРАВИЛА:
+- На привітання відповідай просто: "Привіт! 👋 Чим можу допомогти?"
+- На "да"/"ні"/"ок" — відповідай по контексту, не вітайся знову
+- Для коду — тільки робочий код з коментарями, без помилок
+- Якщо наданий файл — аналізуй ТІЛЬКИ його
+- Якщо просять зображення — відповідай: [IMAGE: детальний опис англійською]
+- Ніколи не вигадуй факти — краще скажи що не знаєш`;
 
 const STORAGE_KEY = "ukrai_chat_history";
 function loadChatHistory() {
@@ -352,10 +370,10 @@ function LoginScreen({ onLogin }) {
   const features = [
     { icon: "⚡", title: "Блискавично", desc: "Відповіді за секунди завдяки Groq" },
     { icon: "🇺🇦", title: "Українською", desc: "Повністю україномовний асистент" },
-    { icon: "🔊", title: "Голос", desc: "Говори — бот розуміє українську" },
-    { icon: "💾", title: "Історія", desc: "Зберігає розмови на пристрої" },
+    { icon: "🧠", title: "Розумний", desc: "Глибокі відповіді з поясненнями" },
+    { icon: "🎭", title: "7 ролей", desc: "Розробник, вчитель, психолог..." },
     { icon: "📁", title: "Файли", desc: "Аналізує код та документи" },
-    { icon: "🧠", title: "Розумний", desc: "Llama 3.3 70B — топова модель" },
+    { icon: "🔊", title: "Голос", desc: "Говори — бот розуміє українську" },
   ];
 
   return (
@@ -371,8 +389,8 @@ function LoginScreen({ onLogin }) {
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: isMobile ? 32 : 56 }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, animation: "logoPulse 3s infinite ease-in-out", flexShrink: 0 }}>🤖</div>
             <div>
-              <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>УкрАI</div>
-              <div style={{ fontSize: 13, color: "rgba(148,163,184,0.6)", marginTop: 2, fontWeight: 400 }}>powered by Llama 3.3 · Groq</div>
+              <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", background: "linear-gradient(135deg, #e2e8f0, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NeuroUA</div>
+              <div style={{ fontSize: 13, color: "rgba(148,163,184,0.6)", marginTop: 2, fontWeight: 400 }}>powered by Groq · Llama 3.3</div>
             </div>
           </div>
 
@@ -383,7 +401,7 @@ function LoginScreen({ onLogin }) {
             <span style={{ fontSize: isMobile ? 26 : 42 }}>🇺🇦</span>
           </h1>
           <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(148,163,184,0.7)", marginBottom: isMobile ? 28 : 48, lineHeight: 1.75, fontWeight: 400 }}>
-            Відповідає на будь-які питання, аналізує файли, розпізнає голос — і все це українською.
+            Розумний AI-асистент нового покоління — глибокі відповіді, аналіз файлів, голосовий ввід. Все українською.
           </p>
 
           {/* Features grid */}
@@ -421,7 +439,7 @@ function LoginScreen({ onLogin }) {
               <div style={{ textAlign: "center", marginBottom: 32 }}>
                 <div style={{ fontSize: 44, marginBottom: 16 }}>✨</div>
                 <h2 style={{ fontSize: 24, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: 8 }}>Почати роботу</h2>
-                <p style={{ fontSize: 14, color: "rgba(148,163,184,0.55)", lineHeight: 1.6 }}>Увійди через Google щоб отримати доступ до УкрАI</p>
+                <p style={{ fontSize: 14, color: "rgba(148,163,184,0.55)", lineHeight: 1.6 }}>Увійди через Google щоб отримати доступ до NeuroUA</p>
               </div>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                 <GoogleLogin onSuccess={(cr) => { if (!cr?.credential) { setLoginError("Помилка"); return; } onLogin(cr); }} onError={() => setLoginError("Помилка входу")} theme="filled_black" shape="pill" size="large" text="signin_with" locale="uk" useOneTap={false} />
@@ -475,6 +493,7 @@ function ChatApp({ user, onLogout }) {
   const [totalRequests, setTotalRequests] = useState(() => { try { return parseInt(localStorage.getItem("ukrai_requests") || "0"); } catch { return 0; } });
   const [streamingText, setStreamingText] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => { try { return localStorage.getItem("ukrai_model") || "llama-3.3-70b-versatile"; } catch { return "llama-3.3-70b-versatile"; } });
   const [accentColor, setAccentColor] = useState(() => { try { return localStorage.getItem("ukrai_accent") || "#6366f1"; } catch { return "#6366f1"; } });
   const [soundEnabled, setSoundEnabled] = useState(() => { try { return localStorage.getItem("ukrai_sound") !== "false"; } catch { return true; } });
@@ -575,9 +594,9 @@ function ChatApp({ user, onLogout }) {
   const exportChat = (format) => {
     if (messages.length === 0) return;
     let content = ""; const date = new Date().toLocaleDateString("uk-UA");
-    if (format === "txt") { content = `УкрАI — Експорт чату (${date})\n${"=".repeat(40)}\n\n`; messages.forEach(m => { content += `[${m.role === "user" ? "Ви" : "УкрАI"}]\n${m.content}\n\n`; }); }
+    if (format === "txt") { content = `NeuroUA — Експорт чату (${date})\n${"=".repeat(40)}\n\n`; messages.forEach(m => { content += `[${m.role === "user" ? "Ви" : "NeuroUA"}]\n${m.content}\n\n`; }); }
     else if (format === "json") { content = JSON.stringify({ date, model: "llama-3.3-70b", preset: activePreset.name, messages }, null, 2); }
-    else if (format === "md") { content = `# УкрАI — Чат (${date})\n\n`; messages.forEach(m => { content += `## ${m.role === "user" ? "👤 Ви" : "🤖 УкрАI"}\n\n${m.content}\n\n---\n\n`; }); }
+    else if (format === "md") { content = `# NeuroUA — Чат (${date})\n\n`; messages.forEach(m => { content += `## ${m.role === "user" ? "👤 Ви" : "🤖 NeuroUA"}\n\n${m.content}\n\n---\n\n`; }); }
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `ukrai-chat-${Date.now()}.${format}`; a.click();
     setShowExport(false);
@@ -640,7 +659,7 @@ function ChatApp({ user, onLogout }) {
     }
   };
 
-  const suggestions = ["💻 Напиши сайт на HTML", "📰 Які новини сьогодні?", "💱 Який курс долара зараз?", "🧮 Розв'яжи: x² + 5x + 6 = 0", "📝 Склади резюме для розробника", "🔍 Поясни як працює React"];
+  const suggestions = ["💻 Напиши сайт на HTML", "🧠 Поясни як працює нейромережа", "💱 Який курс долара зараз?", "🧘 Як подолати прокрастинацію?", "📝 Склади резюме для розробника", "🔍 Що таке квантові комп'ютери?"];
 
   // ── Mobile bottom sheet ────────────────────────────────────────
   const MobileBottomSheet = ({ title, children }) => (
@@ -833,7 +852,7 @@ function ChatApp({ user, onLogout }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 11, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{activePreset.icon}</div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: textColor }}>NeuroUA</div>
               <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ade80", display: "inline-block" }} />{activePreset.name}
               </div>
@@ -878,7 +897,7 @@ function ChatApp({ user, onLogout }) {
                 <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${accentColor}, ${accentColor}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{activePreset.icon}</div>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>NeuroUA</span>
                   </div>
                   <button onClick={startNewChat} title="Новий чат"
                     style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${borderColor}`, background: "transparent", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: subColor }}
@@ -998,7 +1017,7 @@ function ChatApp({ user, onLogout }) {
                 </button>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>УкрАI</span>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: textColor }}>NeuroUA</span>
                     <span style={{ fontSize: 12, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.25)", color: "#a5b4fc", padding: "2px 8px", borderRadius: 20 }}>{activePreset.icon} {activePreset.name}</span>
                   </div>
                   <div style={{ fontSize: 11, color: subColor, display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
@@ -1107,6 +1126,35 @@ function ChatApp({ user, onLogout }) {
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
               onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(99,102,241,0.45)"}
               onBlurCapture={e => { e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"; }}>
+              {/* Model picker button */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <button onClick={() => setShowModelPicker(p => !p)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 10, border: `1px solid ${showModelPicker ? accentColor + "66" : borderColor}`, background: showModelPicker ? accentColor + "18" : "transparent", cursor: "pointer", color: textColor, fontSize: 12, fontFamily: "inherit", fontWeight: 600, whiteSpace: "nowrap", transition: "all 0.15s" }}>
+                  <span style={{ fontSize: 14 }}>🤖</span>
+                  <span style={{ color: showModelPicker ? accentColor : subColor }}>{AI_MODELS.find(m => m.id === selectedModel)?.name.replace("Llama ", "").replace(" Versatile","") || "70B"}</span>
+                  <span style={{ fontSize: 10, color: subColor, transform: showModelPicker ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", display: "inline-block" }}>▾</span>
+                </button>
+                {showModelPicker && (
+                  <>
+                    <div onClick={() => setShowModelPicker(false)} style={{ position: "fixed", inset: 0, zIndex: 98 }} />
+                    <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, zIndex: 99, background: dark ? "#16162a" : "#fff", border: `1px solid ${borderColor}`, borderRadius: 14, padding: 6, minWidth: 220, boxShadow: "0 -8px 30px rgba(0,0,0,0.4)", animation: "fadeInUp 0.15s ease" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: subColor, padding: "4px 10px 6px", letterSpacing: "0.08em" }}>МОДЕЛЬ AI</div>
+                      {AI_MODELS.map(m => (
+                        <button key={m.id} onClick={() => { setSelectedModel(m.id); try { localStorage.setItem("ukrai_model", m.id); } catch {} setShowModelPicker(false); }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 10, border: "none", background: selectedModel === m.id ? accentColor + "18" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "background 0.15s" }}
+                          onMouseEnter={e => { if (selectedModel !== m.id) e.currentTarget.style.background = accentColor + "10"; }}
+                          onMouseLeave={e => { if (selectedModel !== m.id) e.currentTarget.style.background = "transparent"; }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, color: textColor, fontWeight: selectedModel === m.id ? 600 : 400 }}>{m.name}</div>
+                            <div style={{ fontSize: 11, color: subColor }}>{m.badge} · {m.desc}</div>
+                          </div>
+                          {selectedModel === m.id && <span style={{ color: accentColor, fontSize: 16 }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <textarea ref={textareaRef} value={input}
                 onChange={e => {
                   setInput(e.target.value);
