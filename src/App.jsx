@@ -494,6 +494,7 @@ function ChatApp({ user, onLogout }) {
   const [streamingText, setStreamingText] = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => { try { return localStorage.getItem("ukrai_model") || "llama-3.3-70b-versatile"; } catch { return "llama-3.3-70b-versatile"; } });
   const [accentColor, setAccentColor] = useState(() => { try { return localStorage.getItem("ukrai_accent") || "#6366f1"; } catch { return "#6366f1"; } });
   const [soundEnabled, setSoundEnabled] = useState(() => { try { return localStorage.getItem("ukrai_sound") !== "false"; } catch { return true; } });
@@ -1126,6 +1127,37 @@ function ChatApp({ user, onLogout }) {
             <div style={{ display: "flex", gap: 6, alignItems: "flex-end", background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.95)", border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 16, padding: "6px 6px 6px 14px" }}
               onFocusCapture={e => e.currentTarget.style.borderColor = "rgba(99,102,241,0.45)"}
               onBlurCapture={e => { e.currentTarget.style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"; }}>
+              {/* Plus button */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <button onClick={() => { setShowPlusMenu(p => !p); setShowModelPicker(false); }}
+                  style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${showPlusMenu ? accentColor + "66" : borderColor}`, background: showPlusMenu ? accentColor + "18" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: showPlusMenu ? accentColor : subColor, transition: "all 0.15s", transform: showPlusMenu ? "rotate(45deg)" : "rotate(0)", flexShrink: 0 }}>
+                  +
+                </button>
+                {showPlusMenu && (
+                  <>
+                    <div onClick={() => setShowPlusMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 98 }} />
+                    <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, zIndex: 99, background: dark ? "#16162a" : "#fff", border: `1px solid ${borderColor}`, borderRadius: 14, padding: 6, minWidth: 230, boxShadow: "0 -8px 30px rgba(0,0,0,0.4)", animation: "fadeInUp 0.15s ease" }}>
+                      {[
+                        { icon: "📎", label: "Завантажити файл", sub: "Код, текст, CSV, JSON...", action: () => { fileInputRef.current?.click(); setShowPlusMenu(false); } },
+                        { icon: "📋", label: "Вставити з буфера", sub: "Текст або код", action: () => { navigator.clipboard.readText().then(t => { setInput(p => p + t); setShowPlusMenu(false); }).catch(() => setShowPlusMenu(false)); } },
+                        { icon: "🎤", label: voiceSupported ? "Голосовий ввід" : "Голос (не підтримується)", sub: "Говори — бот розуміє українську", action: () => { if (voiceSupported) { toggleVoice(); setShowPlusMenu(false); } } },
+                        { icon: "🗑", label: "Очистити чат", sub: "Почати нову розмову", action: () => { if (window.confirm("Очистити чат?")) { startNewChat(); setShowPlusMenu(false); } }, danger: true },
+                      ].map((item, i) => (
+                        <button key={i} onClick={item.action}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: "none", background: "transparent", cursor: item.label.includes("не підтримується") ? "not-allowed" : "pointer", opacity: item.label.includes("не підтримується") ? 0.4 : 1, textAlign: "left", fontFamily: "inherit", transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = item.danger ? "rgba(239,68,68,0.1)" : accentColor + "12"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <span style={{ fontSize: 20, width: 28, textAlign: "center", flexShrink: 0 }}>{item.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 13, color: item.danger ? "#f87171" : textColor, fontWeight: 500 }}>{item.label}</div>
+                            <div style={{ fontSize: 11, color: subColor, marginTop: 1 }}>{item.sub}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               {/* Model picker button */}
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <button onClick={() => setShowModelPicker(p => !p)}
