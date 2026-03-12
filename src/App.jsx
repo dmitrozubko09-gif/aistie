@@ -61,7 +61,21 @@ const BASE_SYSTEM = `Ти — NeuroUA, передовий україномовн
 
 const STORAGE_KEY = "ukrai_chat_history";
 function loadChatHistory() {
-  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const chats = JSON.parse(raw);
+    // Sanitize: convert any array content to string for display messages
+    return chats.map(chat => ({
+      ...chat,
+      messages: (chat.messages || []).map(m => ({
+        ...m,
+        content: Array.isArray(m.content)
+          ? (m.content.filter(c => c.type === "text").map(c => c.value || c.text || "").join(" ").trim() || (m.role === "user" ? "🖼 Зображення" : ""))
+          : m.content,
+      })),
+    }));
+  } catch { return []; }
 }
 function saveChatHistory(chats) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats)); } catch {}
@@ -351,6 +365,9 @@ const renderInline = (text, dark) => {
 };
 
 const formatMessage = (text, dark, onPreview) => {
+  // Safety: convert non-string content to string
+  if (!text) return null;
+  if (typeof text !== "string") text = contentToString(text);
   const imgMatch = text.match(/\[IMAGE:\s*([^\]]+)\]/);
   if (imgMatch) {
     const before = text.slice(0, imgMatch.index).trim();
@@ -365,6 +382,8 @@ const formatMessage = (text, dark, onPreview) => {
 };
 
 const formatTextOnly = (text, dark, onPreview) => {
+  if (!text) return null;
+  if (typeof text !== "string") text = contentToString(text);
   const parts = text.split(/(```[\s\S]*?```)/g);
   return parts.map((part, idx) => {
     if (part.startsWith("```")) {
@@ -402,6 +421,21 @@ const formatTextOnly = (text, dark, onPreview) => {
       return <div key={i} style={{ marginBottom: 3, lineHeight: 1.7 }}>{renderInline(line, dark)}</div>;
     });
   });
+};
+
+// ── CONTENT HELPERS ────────────────────────────────────────────
+// Safely convert any message content (string or array) to plain text
+const contentToString = (content) => {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(c => c.type === "text")
+      .map(c => c.value || c.text || "")
+      .join(" ")
+      .trim() || "🖼 Зображення";
+  }
+  return String(content);
 };
 
 // ── USER MESSAGE RENDERER ──────────────────────────────────────
@@ -665,8 +699,8 @@ function ChatApp({ user, onLogout }) {
     recognitionRef.current = r; r.start(); setIsListening(true);
   };
 
-  const copyMessage = (text, idx) => { navigator.clipboard.writeText(text); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
-  const pinFact = (text) => { setPinnedFacts(prev => [...prev, text.slice(0, 200)]); };
+  const copyMessage = (content, idx) => { navigator.clipboard.writeText(contentToString(content)); setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 2000); };
+  const pinFact = (content) => { setPinnedFacts(prev => [...prev, contentToString(content).slice(0, 200)]); };
   const startNewChat = () => { setMessages([]); setApiMessages([]); setCurrentChatId(null); setActiveFile(null); setAttachedImages([]); setMobilePanelOpen(null); };
   const loadChat = (chat) => { setMessages(chat.messages); setApiMessages(chat.apiMessages || []); setActivePreset(chat.preset || PRESETS[0]); setCurrentChatId(chat.id); setMobilePanelOpen(null); };
   const deleteChat = (id, e) => { e.stopPropagation(); const u = chatHistory.filter(c => c.id !== id); setChatHistory(u); saveChatHistory(u); if (currentChatId === id) startNewChat(); };
@@ -674,9 +708,9 @@ function ChatApp({ user, onLogout }) {
   const exportChat = (format) => {
     if (messages.length === 0) return;
     let content = ""; const date = new Date().toLocaleDateString("uk-UA");
-    if (format === "txt") { content = `NeuroUA — Експорт чату (${date})\n${"=".repeat(40)}\n\n`; messages.forEach(m => { content += `[${m.role === "user" ? "Ви" : "NeuroUA"}]\n${m.content}\n\n`; }); }
-    else if (format === "json") { content = JSON.stringify({ date, model: "llama-3.3-70b", preset: activePreset.name, messages }, null, 2); }
-    else if (format === "md") { content = `# NeuroUA — Чат (${date})\n\n`; messages.forEach(m => { content += `## ${m.role === "user" ? "👤 Ви" : "🤖 NeuroUA"}\n\n${m.content}\n\n---\n\n`; }); }
+    if (format === "txt") { content = `NeuroUA — Експорт чату (${date})\n${"=".repeat(40)}\n\n`; messages.forEach(m => { content += `[${m.role === "user" ? "Ви" : "NeuroUA"}]\n${contentToString(m.content)}\n\n`; }); }
+    else if (format === "json") { content = JSON.stringify({ date, model: "llama-3.3-70b", preset: activePreset.name, messages: messages.map(m => ({...m, content: contentToString(m.content)})) }, null, 2); }
+    else if (format === "md") { content = `# NeuroUA — Чат (${date})\n\n`; messages.forEach(m => { content += `## ${m.role === "user" ? "👤 Ви" : "🤖 NeuroUA"}\n\n${contentToString(m.content)}\n\n---\n\n`; }); }
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `ukrai-chat-${Date.now()}.${format}`; a.click();
     setShowExport(false);
