@@ -614,6 +614,7 @@ function ChatApp({ user, onLogout }) {
   const [apiMessages, setApiMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [activePreset, setActivePreset] = useState(PRESETS[0]);
@@ -671,19 +672,25 @@ function ChatApp({ user, onLogout }) {
     } catch {}
   };
 
-  const startTypingEffect = (fullText, onDone) => {
-    setTypingEffect("");
+  const startTypingEffect = (fullText, dispMsgs, apiMsgs) => {
+    setIsTyping(true);
     let i = 0;
     if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+    // Add empty assistant message immediately, then fill it character by character
+    const streamMsg = { role: "assistant", content: "", _streaming: true };
+    setMessages([...dispMsgs, streamMsg]);
     typingIntervalRef.current = setInterval(() => {
-      i++;
-      setTypingEffect(fullText.slice(0, i));
+      i += 3; // 3 chars per tick for good speed
+      if (i > fullText.length) i = fullText.length;
+      setMessages([...dispMsgs, { role: "assistant", content: fullText.slice(0, i), _streaming: i < fullText.length }]);
       if (i >= fullText.length) {
         clearInterval(typingIntervalRef.current);
-        setTypingEffect("");
-        onDone(fullText);
+        const finalMsg = { role: "assistant", content: fullText };
+        setMessages([...dispMsgs, finalMsg]);
+        setApiMessages([...apiMsgs, finalMsg]);
+        setIsTyping(false);
       }
-    }, 8);
+    }, 16); // ~60fps
   };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
@@ -792,7 +799,7 @@ function ChatApp({ user, onLogout }) {
   const removeFile = (name) => { setUploadedFiles(prev => prev.filter(f => f.name !== name)); if (activeFile?.name === name) setActiveFile(null); };
 
   const sendMessage = async () => {
-    const text = input.trim(); if ((!text && attachedImages.length === 0) || loading) return;
+    const text = input.trim(); if ((!text && attachedImages.length === 0) || loading || isTyping) return;
     setInput(""); if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
 
     const currentImages = [...attachedImages];
@@ -847,15 +854,12 @@ function ChatApp({ user, onLogout }) {
       setTotalTokensIn(newIn); setTotalTokensOut(newOut); setTotalRequests(newReqs);
       try { localStorage.setItem("ukrai_tokens_in", newIn); localStorage.setItem("ukrai_tokens_out", newOut); localStorage.setItem("ukrai_requests", newReqs); } catch {}
       playSound();
-      startTypingEffect(reply, (full) => {
-        const aMsg = { role: "assistant", content: full };
-        setMessages([...newDispMsgs, aMsg]); setApiMessages([...newApiMsgs, aMsg]);
-      });
+      startTypingEffect(reply, newDispMsgs, newApiMsgs);
     } catch (err) {
       const errMsg = { role: "assistant", content: "⚠️ Помилка: " + err.message };
       setMessages([...newDispMsgs, errMsg]); setApiMessages([...newApiMsgs, errMsg]);
     } finally {
-      setLoading(false); setStreamingText("");
+      setLoading(false);
     }
   };
 
@@ -1277,7 +1281,10 @@ function ChatApp({ user, onLogout }) {
                 <div style={{ maxWidth: isMobile ? "88%" : "74%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
                   <div style={{ padding: isMobile ? "10px 13px" : "12px 16px", borderRadius: m.role === "user" ? "18px 18px 5px 18px" : "5px 18px 18px 18px", background: m.role === "user" ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.04)" : "#ffffff"), color: m.role === "user" ? "#fff" : textColor, fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, border: m.role === "assistant" ? `1px solid ${borderColor}` : "none", boxShadow: m.role === "user" ? "0 8px 30px rgba(99,102,241,0.3)" : (dark ? "0 2px 10px rgba(0,0,0,0.3)" : "0 2px 12px rgba(0,0,0,0.08)"), whiteSpace: m.role === "user" ? "pre-wrap" : "normal", wordBreak: "break-word" }}>
                     {m.role === "assistant"
-                      ? formatMessage(m.content, dark, setPreviewHtml)
+                      ? <div>
+                          {formatMessage(m.content, dark, setPreviewHtml)}
+                          {m._streaming && <span style={{ display: "inline-block", width: 8, height: 15, background: accentColor, borderRadius: 2, marginLeft: 3, verticalAlign: "middle", animation: "typingBounce 1s infinite" }} />}
+                        </div>
                       : renderUserMessage(m.content, isMobile)
                     }
                   </div>
@@ -1304,12 +1311,7 @@ function ChatApp({ user, onLogout }) {
               <div style={{ display: "flex", gap: isMobile ? 6 : 10, animation: "fadeInUp 0.3s ease both" }}>
                 <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17, flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.25)" }}>{activePreset.icon}</div>
                 <div style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.92)", border: `1px solid ${borderColor}`, borderRadius: "5px 18px 18px 18px", padding: "10px 16px", maxWidth: isMobile ? "88%" : "74%" }}>
-                  {typingEffect ? (
-                    <div style={{ fontSize: isMobile ? 14 : 14.5, lineHeight: 1.7, color: textColor }}>
-                      {formatTextOnly(typingEffect, dark, setPreviewHtml)}
-                      <span style={{ display: "inline-block", width: 8, height: 14, background: accentColor, borderRadius: 2, marginLeft: 3, animation: "typingBounce 1s infinite" }} />
-                    </div>
-                  ) : <TypingDots />}
+                  <TypingDots />
                 </div>
               </div>
             )}
@@ -1428,8 +1430,8 @@ function ChatApp({ user, onLogout }) {
                   {isListening ? "🔴" : "🎤"}
                 </button>
               )}
-              <button onClick={sendMessage} disabled={loading || (!input.trim() && attachedImages.length === 0)}
-                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && (input.trim() || attachedImages.length > 0) ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && (input.trim() || attachedImages.length > 0) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && (input.trim() || attachedImages.length > 0) ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
+              <button onClick={sendMessage} disabled={loading || isTyping || (!input.trim() && attachedImages.length === 0)}
+                style={{ width: isMobile ? 42 : 42, height: isMobile ? 42 : 42, borderRadius: 11, border: "none", background: !loading && !isTyping && (input.trim() || attachedImages.length > 0) ? `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)` : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"), cursor: !loading && !isTyping && (input.trim() || attachedImages.length > 0) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.2s", boxShadow: !loading && !isTyping && (input.trim() || attachedImages.length > 0) ? "0 4px 16px rgba(99,102,241,0.35)" : "none", flexShrink: 0 }}>
                 {loading ? "⏳" : "➤"}
               </button>
             </div>
