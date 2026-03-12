@@ -376,30 +376,18 @@ const ImageMessage = ({ prompt }) => {
 const renderInline = (text, dark) => {
   if (!text || typeof text !== "string") return text;
   const result = [];
-  let i = 0;
-  while (i < text.length) {
-    if (text[i] === "*" && text[i+1] === "*") {
-      const close = text.indexOf("**", i + 2);
-      if (close !== -1) {
-        result.push(<strong key={i} style={{ color: dark ? "#c4b5fd" : "#5b21b6" }}>{text.slice(i+2, close)}</strong>);
-        i = close + 2; continue;
-      }
+  // Use regex-based approach - much safer than manual index walking
+  const parts = text.split(/(\*\*[^*]*\*\*|`[^`]*`)/g);
+  parts.forEach((part, idx) => {
+    if (!part) return;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      result.push(<strong key={idx} style={{ color: dark ? "#c4b5fd" : "#5b21b6" }}>{part.slice(2, -2)}</strong>);
+    } else if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      result.push(<code key={idx} style={{ background: dark ? "rgba(102,126,234,0.2)" : "rgba(102,126,234,0.12)", color: dark ? "#a5f3fc" : "#0e7490", borderRadius: 4, padding: "1px 5px", fontSize: "0.9em", fontFamily: "monospace" }}>{part.slice(1, -1)}</code>);
+    } else {
+      result.push(part);
     }
-    if (text[i] === "`") {
-      const close = text.indexOf("`", i + 1);
-      if (close !== -1) {
-        result.push(<code key={i} style={{ background: dark ? "rgba(102,126,234,0.2)" : "rgba(102,126,234,0.12)", color: dark ? "#a5f3fc" : "#0e7490", borderRadius: 4, padding: "1px 5px", fontSize: "0.9em", fontFamily: "monospace" }}>{text.slice(i+1, close)}</code>);
-        i = close + 1; continue;
-      }
-    }
-    const next = Math.min(
-      text.indexOf("**", i) !== -1 ? text.indexOf("**", i) : text.length,
-      text.indexOf("`", i) !== -1 ? text.indexOf("`", i) : text.length
-    );
-    result.push(text.slice(i, next));
-    i = next;
-    if (i === next && i < text.length && text[i] !== "*" && text[i] !== "`") i++;
-  }
+  });
   return result;
 };
 
@@ -676,21 +664,24 @@ function ChatApp({ user, onLogout }) {
     setIsTyping(true);
     let i = 0;
     if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
-    // Add empty assistant message immediately, then fill it character by character
-    const streamMsg = { role: "assistant", content: "", _streaming: true };
-    setMessages([...dispMsgs, streamMsg]);
+    // Set initial empty streaming message
+    setMessages([...dispMsgs, { role: "assistant", content: "", _streaming: true }]);
     typingIntervalRef.current = setInterval(() => {
-      i += 3; // 3 chars per tick for good speed
-      if (i > fullText.length) i = fullText.length;
-      setMessages([...dispMsgs, { role: "assistant", content: fullText.slice(0, i), _streaming: i < fullText.length }]);
-      if (i >= fullText.length) {
+      i = Math.min(i + 4, fullText.length);
+      const chunk = fullText.slice(0, i);
+      const done = i >= fullText.length;
+      // Replace last message (the streaming one) using functional update
+      setMessages(prev => {
+        const rest = prev.slice(0, -1); // all except last streaming msg
+        return [...rest, { role: "assistant", content: chunk, _streaming: !done }];
+      });
+      if (done) {
         clearInterval(typingIntervalRef.current);
         const finalMsg = { role: "assistant", content: fullText };
-        setMessages([...dispMsgs, finalMsg]);
         setApiMessages([...apiMsgs, finalMsg]);
         setIsTyping(false);
       }
-    }, 16); // ~60fps
+    }, 16);
   };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
